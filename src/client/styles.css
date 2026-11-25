@@ -160,6 +160,12 @@ button:disabled { cursor: not-allowed; }
   background: var(--chip); color: var(--on-accent); border: 3px solid var(--outline); border-radius: 999px; font-weight: 900; font-size: 17px; white-space: nowrap;
 }
 .chip.white { background: var(--surface); color: var(--text); }
+.turn-chip { gap: 8px; padding: 0 14px 0 5px; max-width: 260px; background: var(--surface); color: var(--text); }
+.turn-chip .avatar { border-width: 2px; }
+.turn-chip .who { overflow: hidden; text-overflow: ellipsis; }
+.turn-chip .secs { font-family: 'Baloo 2', sans-serif; font-weight: 800; color: var(--text-soft); flex-shrink: 0; }
+.turn-chip.mine { background: var(--yellow); color: var(--on-accent); box-shadow: 0 0 0 4px rgba(255, 210, 63, .45); }
+.turn-chip.mine .secs { color: var(--on-accent); }
 .input {
   height: 52px; padding: 0 16px; border: 3px solid var(--outline); border-radius: 14px; background: var(--surface);
   font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 19px; color: var(--text); width: 100%;

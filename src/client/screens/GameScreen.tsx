@@ -406,6 +406,13 @@ export function GameScreen({ table }: { table: TableView }) {
         <span className="chip">{table.settings.mode === 'esli' ? 'Eşli' : 'Tekli'}</span>
         <span className="chip">{table.settings.katlamali ? 'Katlamalı' : 'Katlamasız'}</span>
         <span className="chip">{table.settings.turnSeconds} sn</span>
+        {(g.phase === 'draw' || g.phase === 'play') && (
+          <span className={`chip turn-chip ${myTurn ? 'mine' : ''}`} role="status" aria-live="polite">
+            <Avatar url={g.players[g.turn].avatar} name={g.players[g.turn].name} size={30} bg={AVATAR_BG[g.turn]} isBot={g.players[g.turn].isBot} />
+            <span className="who">{myTurn ? 'Sıra sende' : `Sıra: ${g.players[g.turn].name}`}</span>
+            {timeLeft !== null && <span className="secs">{timeLeft} sn</span>}
+          </span>
+        )}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
           <button className="btn danger" onClick={() => { if (window.confirm('Masadan çıkmak istiyor musun? Hamlelerin otomatik oynanır.')) socket.emit('table:leave'); }}>
             Masadan çık
