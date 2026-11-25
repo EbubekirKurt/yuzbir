@@ -342,3 +342,23 @@ describe('okey alma', () => {
     expect(g.players[1].penalties[0]).toEqual({ amount: 101, reason: 'Okeyi alındı' });
   });
 });
+
+describe('gösterge çifti', () => {
+  it('bildirilen gösterge tek başına ya da yanına herhangi bir taşla 1 çift sayılır', () => {
+    const g = setup();
+    const gost = t('R', 7); // gösterge kırmızı 7
+    const any = t('K', 2);
+    const pairs = Array.from({ length: 3 }, (_, i) => [t('B', i + 2), t('B', i + 2)]);
+    const extra = [t('Y', 9), t('Y', 9)];
+    g.players[0].hand = [...pairs.flat(), ...extra, gost, any, t('Y', 1)];
+    g.discardCount = 0;
+    expect(g.declareGosterge(0).ok).toBe(true);
+    g.turn = 0;
+    g.phase = 'play';
+    // 3 çift + Y9 çifti + (gösterge + siyah 2) = 5 çift
+    const groups = [...pairs.map((p) => p.map((x) => x.id)), extra.map((x) => x.id), [gost.id, any.id]];
+    expect(g.open(0, 'cift', groups).ok).toBe(true);
+    expect(g.players[0].openValue).toBe(5);
+    expect(g.players[0].hand.map((x) => x.id)).not.toContain(any.id);
+  });
+});

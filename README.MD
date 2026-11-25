@@ -82,6 +82,7 @@ Masayı kuran kişi şunları seçer:
 ### 5.4 Gösterge çifti
 
 - Göstergenin aynısı elinde olan oyuncu, **ilk taş atılmadan önce** bunu bildirebilir. Bildirirse bu taş **1 çift** sayılır ve çiftle açarken kullanılabilir. Göstergeyi bildirmek puan kazandırmaz.
+- Gösterge çifti tek başına konabileceği gibi, oyuncu **yanına istediği herhangi bir taşı** da koyabilir; ikisi birlikte 1 çift sayılır ve birlikte masaya iner. Istakada gösterge ile o taşı yan yana, diğer gruplardan boşlukla ayrı dizmek yeterlidir.
 - Gösterge taşı sonradan (desteden ya da soldan) gelirse sadece normal bir taştır.
 
 ### 5.5 Hatalı açma

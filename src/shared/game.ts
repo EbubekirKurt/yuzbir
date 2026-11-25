@@ -256,8 +256,10 @@ export class Game {
         tiles.push(t);
       }
       let m: MeldAnalysis | null = null;
-      if (mode === 'cift' && tiles.length === 1 && p.gostergeTileId === tiles[0].id) {
-        m = { kind: 'pair', tiles, reps: [face(tiles[0], this.okey)], value: 1 };
+      const gosterge = p.gostergeTileId !== null ? tiles.find((t) => t.id === p.gostergeTileId) : undefined;
+      if (mode !== 'seri' && gosterge && tiles.length <= 2) {
+        // Bildirilen gösterge tek başına ya da yanına konan herhangi bir taşla 1 çift sayılır.
+        m = { kind: 'pair', tiles, reps: tiles.map((t) => face(t, this.okey)), value: 1 };
       } else if (mode === 'seri') m = analyzeSet(tiles, this.okey);
       else if (mode === 'cift') m = analyzePair(tiles, this.okey);
       else m = tiles.length === 2 ? analyzePair(tiles, this.okey) : analyzeSet(tiles, this.okey);

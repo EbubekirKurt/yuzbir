@@ -171,7 +171,9 @@ export function GameScreen({ table }: { table: TableView }) {
   const blocks = slotBlocks(slots).map((ids) => ids.map((id) => tilesById.get(id)).filter((t): t is Tile => !!t));
   const seriBlocks = blocks.filter((b) => b.length >= 3 && analyzeSet(b, okey));
   const seriTotal = seriBlocks.reduce((s, b) => s + analyzeSet(b, okey)!.value, 0);
-  const pairBlocks = blocks.filter((b) => b.length === 2 && analyzePair(b, okey));
+  const isGostergePair = (b: Tile[]) =>
+    g.gostergeDeclared && g.gostergeTileId !== null && b.length === 2 && b.some((t) => t.id === g.gostergeTileId);
+  const pairBlocks = blocks.filter((b) => b.length === 2 && (analyzePair(b, okey) || isGostergePair(b)));
   const gostergeExtra =
     g.gostergeDeclared && g.gostergeTileId !== null && tilesById.has(g.gostergeTileId) &&
     !pairBlocks.some((b) => b.some((t) => t.id === g.gostergeTileId))
@@ -180,7 +182,7 @@ export function GameScreen({ table }: { table: TableView }) {
   const pairCount = pairBlocks.length + gostergeExtra;
   // Açtıktan sonra indirilebilecek gruplar: seri perler; çiftle açan için çiftler de.
   const layable = opened
-    ? blocks.filter((b) => (b.length >= 3 && analyzeSet(b, okey)) || (opened === 'cift' && b.length === 2 && analyzePair(b, okey)))
+    ? blocks.filter((b) => (b.length >= 3 && analyzeSet(b, okey)) || (opened === 'cift' && b.length === 2 && (analyzePair(b, okey) || isGostergePair(b))))
     : [];
   // Elindeki taşların ceza değeri (okey 101; çiftle açtıysan 2 katı).
   const handPoints = g.hand.reduce((s, t) => s + handValue(t, okey), 0) * (opened === 'cift' ? 2 : 1);
@@ -227,7 +229,7 @@ export function GameScreen({ table }: { table: TableView }) {
     }
     const block = blocks.find((b) => b.some((t) => t.id === selected));
     if (!block) return setFlash('İndirmek istediğin grubun bir taşını seç.');
-    const valid = block.length === 2 ? analyzePair(block, okey) : analyzeSet(block, okey);
+    const valid = block.length === 2 ? analyzePair(block, okey) || isGostergePair(block) : analyzeSet(block, okey);
     if (!valid) return setFlash('Seçili grup geçerli bir per ya da çift değil.');
     act({ type: 'lay', groups: [block.map((t) => t.id)] });
   };
