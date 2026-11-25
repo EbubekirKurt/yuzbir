@@ -115,7 +115,7 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
                   onChange={(v) => set({ esKatlama: v === 'e' })}
                 />
               ) : (
-                <div style={{ height: 50, display: 'flex', alignItems: 'center', padding: '0 16px', border: '3px dashed #C9B48A', borderRadius: 14, fontWeight: 700, color: 'var(--ink-soft)' }}>
+                <div style={{ height: 50, display: 'flex', alignItems: 'center', padding: '0 16px', border: '3px dashed var(--line-strong)', borderRadius: 14, fontWeight: 700, color: 'var(--text-soft)' }}>
                   Eşli ve katlamalı modda açılır
                 </div>
               )}
@@ -133,7 +133,7 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div className="card" style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 10, boxShadow: 'none', background: '#fff' }}>
+            <div className="card" style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 10, boxShadow: 'none', background: 'var(--surface)' }}>
               <span className="label" style={{ fontSize: 13 }}>Masa kuralları</span>
               {rulesSummary(s).map((l) => (
                 <div key={l} style={{ display: 'flex', gap: 10, fontWeight: 700, fontSize: 17, lineHeight: 1.35 }}>

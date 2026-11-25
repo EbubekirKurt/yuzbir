@@ -44,7 +44,7 @@ export function AuthScreen({ onAuthed, invited }: { onAuthed: (me: Me) => void; 
         </div>
         <div style={{ padding: '30px 44px 36px', display: 'flex', flexDirection: 'column', gap: 20, flex: 1 }}>
           {invited && (
-            <div className="card" style={{ padding: '14px 18px', boxShadow: 'none', background: '#FFE7A8', fontWeight: 800, fontSize: 17 }}>
+            <div className="card" style={{ padding: '14px 18px', boxShadow: 'none', background: 'var(--chip)', color: 'var(--on-accent)', fontWeight: 800, fontSize: 17 }}>
               Bir masaya davet edildin. Oynamak için giriş yap ya da hesap oluştur.
             </div>
           )}
@@ -94,7 +94,7 @@ export function AuthScreen({ onAuthed, invited }: { onAuthed: (me: Me) => void; 
             </div>
           )}
           {error && (
-            <div role="alert" style={{ fontWeight: 800, fontSize: 16, color: '#A3241F' }}>{error}</div>
+            <div role="alert" style={{ fontWeight: 800, fontSize: 16, color: 'var(--bad-text)' }}>{error}</div>
           )}
           <button
             type="submit"

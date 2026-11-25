@@ -40,13 +40,13 @@ function Scene() {
       <svg width="100%" height="56%" viewBox="0 0 1440 450" preserveAspectRatio="none">
         <path
           d="M0 260 L120 260 L150 200 L330 200 L360 260 L520 260 L560 170 L760 170 L790 240 L980 240 L1010 150 L1220 150 L1250 230 L1440 230 L1440 450 L0 450 Z"
-          fill="#F0A86E"
+          style={{ fill: 'var(--mesa1)' }}
         />
         <path
           d="M0 330 L200 330 L230 280 L420 280 L450 330 L860 330 L890 270 L1090 270 L1120 330 L1440 330 L1440 450 L0 450 Z"
-          fill="#D9774A"
+          style={{ fill: 'var(--mesa2)' }}
         />
-        <rect x="0" y="380" width="1440" height="70" fill="#E9C48A" />
+        <rect x="0" y="380" width="1440" height="70" style={{ fill: 'var(--ground)' }} />
       </svg>
     </div>
   );

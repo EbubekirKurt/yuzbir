@@ -11,7 +11,7 @@ export function ranking(totals: number[]): number[] {
   return totals.map((t) => totals.filter((x) => x < t).length + 1);
 }
 
-const RANK_BG = ['#FFD23F', '#E3E3E3', '#F0B98A', '#FFFFFF'];
+const RANK_BG = ['#FFD23F', '#E3E3E3', '#F0B98A', '#F1E4CF'];
 
 export function ScoreModal(props: {
   game: GameView;
@@ -49,7 +49,7 @@ export function ScoreModal(props: {
           </span>
           {props.onClose && (
             <button className="icon-btn" style={{ marginLeft: 'auto', width: 52, height: 52 }} aria-label="Kapat" onClick={props.onClose}>
-              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B2A1A" strokeWidth="3" strokeLinecap="round">
+              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
                 <path d="M6 6l12 12" />
                 <path d="M18 6L6 18" />
               </svg>
@@ -88,7 +88,7 @@ export function ScoreModal(props: {
                         const h = g.history[i];
                         const txt = h ? String(h.rows[seat].total) : i === g.handNo - 1 && live ? '…' : '—';
                         return (
-                          <span key={i} role="cell" style={{ color: h ? undefined : 'var(--ink-soft)' }}>{txt}</span>
+                          <span key={i} role="cell" style={{ color: h ? undefined : 'var(--text-soft)' }}>{txt}</span>
                         );
                       })}
                       <span role="cell" className="baloo" style={{ fontWeight: 800, fontSize: 26 }}>{g.totals[seat]}</span>
@@ -148,7 +148,7 @@ export function ScoreModal(props: {
                       <span role="cell" className="r">{r.base}</span>
                       <span role="cell" style={{ paddingLeft: 24, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
                         {r.penalties.length === 0 ? (
-                          <span style={{ color: 'var(--ink-soft)' }}>—</span>
+                          <span style={{ color: 'var(--text-soft)' }}>—</span>
                         ) : (
                           r.penalties.map((p, i) => (
                             <span key={i} className="pen">{p.reason} · +{p.amount}</span>
@@ -187,7 +187,7 @@ export function ScoreModal(props: {
                       <span role="cell">{openText(p.opened, p.openValue)}</span>
                       <span role="cell" style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {g.currentPenalties[p.seat].length === 0 ? (
-                          <span style={{ color: 'var(--ink-soft)' }}>—</span>
+                          <span style={{ color: 'var(--text-soft)' }}>—</span>
                         ) : (
                           g.currentPenalties[p.seat].map((x, i) => (
                             <span key={i} className="pen">{x.reason} · +{x.amount}</span>

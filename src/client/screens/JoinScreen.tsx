@@ -49,31 +49,31 @@ export function JoinScreen(props: { tableId: string; me: Me; onMe: (me: Me) => v
             <p className="hint" style={{ margin: 0, fontSize: 16 }}>
               Masaya oturmadan önce fotoğrafını ve masada görünecek adını ayarlayabilirsin.
             </p>
-            <div className="card" style={{ padding: 24, boxShadow: 'none', background: '#fff' }}>
+            <div className="card" style={{ padding: 24, boxShadow: 'none', background: 'var(--surface)' }}>
               <ProfileEditor me={props.me} onChange={props.onMe} />
             </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {error && (
-              <div className="card" role="alert" style={{ padding: 20, fontWeight: 800, fontSize: 18, background: '#FFE1DA' }}>{error}</div>
+              <div className="card" role="alert" style={{ padding: 20, fontWeight: 800, fontSize: 18, background: 'var(--bad-bg)', color: 'var(--on-accent)' }}>{error}</div>
             )}
             {peek && (
               <>
                 <span className="label">Masadakiler ({seated} / 4)</span>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
                   {peek.seats.map((s, i) => (
-                    <div key={i} className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: 'none', background: s ? '#fff' : 'transparent', borderStyle: s ? 'solid' : 'dashed' }}>
+                    <div key={i} className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, boxShadow: 'none', background: s ? 'var(--surface)' : 'transparent', borderStyle: s ? 'solid' : 'dashed' }}>
                       {s ? (
                         <Avatar url={s.avatar} name={s.name} size={48} isBot={s.isBot} />
                       ) : (
-                        <div className="avatar" style={{ width: 48, height: 48, background: '#fff' }}>?</div>
+                        <div className="avatar" style={{ width: 48, height: 48, background: '#F1E4CF' }}>?</div>
                       )}
                       <span style={{ fontWeight: 900, fontSize: 17 }}>{s ? s.name : 'Boş koltuk'}</span>
                     </div>
                   ))}
                 </div>
-                <div className="card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8, boxShadow: 'none', background: '#fff' }}>
+                <div className="card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8, boxShadow: 'none', background: 'var(--surface)' }}>
                   <span className="label" style={{ fontSize: 13 }}>Masa kuralları</span>
                   {rulesSummary(peek.settings).map((l) => (
                     <div key={l} style={{ display: 'flex', gap: 10, fontWeight: 700, fontSize: 16, lineHeight: 1.35 }}>

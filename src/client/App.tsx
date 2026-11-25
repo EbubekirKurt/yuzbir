@@ -9,6 +9,33 @@ import { JoinScreen } from './screens/JoinScreen';
 import { Lobby } from './screens/Lobby';
 import { WaitingRoom } from './screens/WaitingRoom';
 import { api, ApiError, socket } from './socket';
+import { applyTheme, initialTheme, type Theme } from './theme';
+
+function ThemeToggle() {
+  const [theme, setTheme] = useState<Theme>(initialTheme());
+  useEffect(() => applyTheme(theme), [theme]);
+  const dark = theme === 'dark';
+  return (
+    <button
+      type="button"
+      className="theme-toggle"
+      aria-label={dark ? 'Açık temaya geç' : 'Koyu temaya geç'}
+      title={dark ? 'Açık tema' : 'Koyu tema'}
+      onClick={() => setTheme(dark ? 'light' : 'dark')}
+    >
+      {dark ? (
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <circle cx="12" cy="12" r="4.5" />
+          <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+        </svg>
+      ) : (
+        <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
+        </svg>
+      )}
+    </button>
+  );
+}
 
 const inviteFromUrl = () => new URLSearchParams(location.search).get('masa');
 
@@ -151,6 +178,7 @@ export default function App() {
   return (
     <>
       <Stage>{screen}</Stage>
+      <ThemeToggle />
       <div className="toasts" role="status" aria-live="polite">
         {authError && <div className="toast">{authError}</div>}
         {toasts.map((t) => (

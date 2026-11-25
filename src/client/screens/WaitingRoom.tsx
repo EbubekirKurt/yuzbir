@@ -49,7 +49,7 @@ export function WaitingRoom({ table }: { table: TableView }) {
             <span className="label">Koltuklar</span>
             <div
               aria-hidden="true"
-              style={{ position: 'absolute', left: 200, top: 160, width: 320, height: 170, borderRadius: 40, border: '12px solid var(--wood)', background: 'var(--felt)', boxShadow: '0 0 0 3px var(--ink)' }}
+              style={{ position: 'absolute', left: 200, top: 160, width: 320, height: 170, borderRadius: 40, border: '12px solid var(--wood)', background: 'var(--felt)', boxShadow: '0 0 0 3px var(--outline)' }}
             />
             {[0, 1, 2, 3].map((rel) => {
               const seat = (me + rel) % 4;
@@ -61,7 +61,7 @@ export function WaitingRoom({ table }: { table: TableView }) {
                   {s ? (
                     <Avatar url={s.avatar} name={s.name} size={58} isBot={s.isBot} bg={s.isYou ? 'var(--orange)' : undefined} dim={!s.connected} />
                   ) : (
-                    <div className="avatar" style={{ width: 58, height: 58, fontSize: 26, background: '#fff' }}>?</div>
+                    <div className="avatar" style={{ width: 58, height: 58, fontSize: 26, background: '#F1E4CF' }}>?</div>
                   )}
                   <span style={{ fontWeight: 900, fontSize: 18 }}>
                     {s ? (s.isYou ? `${s.name} (sen)` : s.name) : 'Boş koltuk'}
@@ -85,7 +85,7 @@ export function WaitingRoom({ table }: { table: TableView }) {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div className="card" style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 10, boxShadow: 'none', background: '#fff' }}>
+            <div className="card" style={{ padding: '18px 22px', display: 'flex', flexDirection: 'column', gap: 10, boxShadow: 'none', background: 'var(--surface)' }}>
               <span className="label" style={{ fontSize: 13 }}>Masa kuralları</span>
               {rulesSummary(table.settings).map((l) => (
                 <div key={l} style={{ display: 'flex', gap: 10, fontWeight: 700, fontSize: 17, lineHeight: 1.35 }}>

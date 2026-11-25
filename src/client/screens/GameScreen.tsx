@@ -347,7 +347,7 @@ export function GameScreen({ table }: { table: TableView }) {
         <div className="banner">
           <span className="k">Açma sınırı</span>
           <span>Seri {g.thresholds.seri}</span>
-          <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: '#FFE7A8' }} />
+          <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chip)' }} />
           <span>Çift {g.thresholds.cift}</span>
         </div>
 
@@ -442,7 +442,7 @@ export function GameScreen({ table }: { table: TableView }) {
           className="ring"
           role="img"
           aria-label={myTurn && timeLeft !== null ? `Kalan süre ${timeLeft} saniye` : 'Sıra sende değil'}
-          style={{ background: myTurn ? `conic-gradient(#FFB23F 0 ${timeFrac * 100}%, #F3E3C3 ${timeFrac * 100}% 100%)` : '#F3E3C3' }}
+          style={{ background: myTurn ? `conic-gradient(#FFB23F 0 ${timeFrac * 100}%, var(--track) ${timeFrac * 100}% 100%)` : 'var(--track)' }}
         >
           <div className="inner">
             {myTurn && timeLeft !== null ? (
@@ -520,7 +520,7 @@ export function GameScreen({ table }: { table: TableView }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <h2>Puan tablosu</h2>
           <button className="icon-btn" aria-label="Puan tablosunu büyüt" onClick={() => { setScoreTab('genel'); setScoreOpen(true); }}>
-            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B2A1A" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" />
             </svg>
           </button>
@@ -605,7 +605,7 @@ export function GameScreen({ table }: { table: TableView }) {
           onClose={g.phase === 'gameOver' ? undefined : () => setScoreOpen(false)}
           banner={
             g.phase === 'handEnd' && lastHand ? (
-              <div className="card" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16, boxShadow: 'none', background: '#FFE7A8' }}>
+              <div className="card" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16, boxShadow: 'none', background: 'var(--chip)', color: 'var(--on-accent)' }}>
                 <span className="baloo" style={{ fontWeight: 800, fontSize: 24 }}>
                   El {lastHand.handNo} bitti: {lastHand.finisher === null ? 'deste bitti' : `${g.players[lastHand.finisher].name} bitirdi`} ({lastHand.finishLabel.toLowerCase()})
                 </span>
@@ -616,7 +616,7 @@ export function GameScreen({ table }: { table: TableView }) {
                 )}
               </div>
             ) : g.phase === 'gameOver' ? (
-              <div className="card" style={{ padding: '14px 20px', boxShadow: 'none', background: '#BDEBB0' }}>
+              <div className="card" style={{ padding: '14px 20px', boxShadow: 'none', background: 'var(--good-bg)', color: 'var(--on-accent)' }}>
                 <span className="baloo" style={{ fontWeight: 800, fontSize: 26 }}>
                   Oyun bitti! Kazanan: {table.settings.mode === 'esli'
                     ? (g.totals[0] + g.totals[2] === g.totals[1] + g.totals[3]

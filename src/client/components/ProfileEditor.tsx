@@ -89,7 +89,7 @@ export function ProfileEditor({ me, onChange }: { me: Me; onChange: (me: Me) => 
         </div>
         <span className="hint">Kullanıcı adın: {me.username} (giriş için kullanılır, değişmez)</span>
         {msg && (
-          <span role="status" style={{ fontWeight: 800, color: msg.error ? '#A3241F' : '#2F7A3A' }}>
+          <span role="status" style={{ fontWeight: 800, color: msg.error ? 'var(--bad-text)' : 'var(--good-text)' }}>
             {msg.text}
           </span>
         )}
