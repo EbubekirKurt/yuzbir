@@ -203,7 +203,8 @@ Tam tablo:
   - Oturum 30 gün geçerlidir ve `httpOnly` bir çerezde durur. Veritabanında oturum anahtarının yalnızca SHA-256 özeti tutulur.
 - **Profil:** Her oyuncu profil fotoğrafı ve masada görünen adını değiştirebilir (lobide sağ üstteki adına tıklayarak ya da masaya katılma ekranında). Fotoğraf 192×192 JPEG'e küçültülerek saklanır.
 - **Davet linki:** Linki açan kişi giriş yapmamışsa önce giriş/kayıt ekranına gider. Giriş yaptıktan sonra **masaya katılma ekranı** açılır: masadakileri ve kuralları görür, profilini düzenler, sonra "Masaya otur" der. Lobiden "Katıl" da aynı ekrana götürür.
-- **Tema:** Sol alttaki düğmeyle açık (gündüz) ve koyu (gece) tema arasında geçilir. Seçim tarayıcıda saklanır; ilk açılışta cihazın tercihi kullanılır. Taşların zemini ve rakam renkleri iki temada da aynıdır.
+- **Oyuncu kartları:** Elini açan oyuncunun kartında neyle açtığı ve elinde kaç taş kaldığı görünür; masadaki per etiketlerinde de kalan taş sayısı yazar. Rakiplerin kalan puanı gösterilmez (gizli bilgi). Kendi kartın ıstakanın solundadır: süre, açma durumu, seri/çift toplamın (açtıktan sonra indirilebilir perlerin) ve elindeki taşların sayısı ile puan değeri.
+- **Tema:** Ekranın üst ortasındaki düğmeyle açık (gündüz) ve koyu (gece) tema arasında geçilir. Seçim tarayıcıda saklanır; ilk açılışta cihazın tercihi kullanılır. Taşların zemini ve rakam renkleri iki temada da aynıdır.
 - **Taş animasyonları:** Desteden çekilen taş desteden çeken oyuncuya uçar (kendi çektiğin taş yüzü açık olarak ıstakadaki yerine gider, rakibinki kapalı gider). Atılan taş oyuncudan atma yerine, soldan alınan taş da alan oyuncuya uçar.
 - **Süre dolarsa:** Oyun oyuncu adına desteden taş çeker ve **işlek olmayan en düşük taşı** atar.
 - **Okeyi işaretleme:** Istakadaki okey taşı normal taş gibi görünür. Oyuncu okeye **çift tıklarsa** taş beyaza döner ve üzerinde "OKEY" yazar. Tekrar çift tıklarsa eski haline döner. Diğer taşlarda çift tıklamanın etkisi yoktur.

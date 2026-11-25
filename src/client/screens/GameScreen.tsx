@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { analyzePair, analyzeSet, extendMeld } from '../../shared/melds';
-import { face, faceName, isJoker, sameFace, tileName } from '../../shared/tiles';
+import { face, faceName, handValue, isJoker, sameFace, tileName } from '../../shared/tiles';
 import type { Face, GameAction, GameView, TableMeld, TableView, Tile } from '../../shared/types';
 import { arrangeCift, arrangeSeri, layoutSlots, ROW, slotBlocks, sortTiles } from '../arrange';
 import { Avatar } from '../components/Avatar';
@@ -182,6 +182,8 @@ export function GameScreen({ table }: { table: TableView }) {
   const layable = opened
     ? blocks.filter((b) => (b.length >= 3 && analyzeSet(b, okey)) || (opened === 'cift' && b.length === 2 && analyzePair(b, okey)))
     : [];
+  // Elindeki taşların ceza değeri (okey 101; çiftle açtıysan 2 katı).
+  const handPoints = g.hand.reduce((s, t) => s + handValue(t, okey), 0) * (opened === 'cift' ? 2 : 1);
   const layableTotal = layable.reduce((s, b) => s + (b.length >= 3 ? analyzeSet(b, okey)!.value : 0), 0);
 
   const moveTile = (id: number, to: number) => {
@@ -284,7 +286,7 @@ export function GameScreen({ table }: { table: TableView }) {
     .filter((x) => x.melds.length);
   const ownerLabel = (o: number) => {
     const p = g.players[o];
-    return `${o === me ? 'Sen' : p.name}${p.opened ? ` · ${p.opened === 'seri' ? `${p.openValue} seri` : `${p.openValue} çift`}` : ''}`;
+    return `${o === me ? 'Sen' : p.name}${p.opened ? ` · ${p.opened === 'seri' ? `${p.openValue} seri` : `${p.openValue} çift`}` : ''} · ${p.handCount} taş kaldı`;
   };
 
   const timeLeft = deadline ? Math.max(0, Math.ceil((deadline - now) / 1000)) : null;
@@ -362,7 +364,13 @@ export function GameScreen({ table }: { table: TableView }) {
     const seat = seatAt(r);
     const p = g.players[seat];
     const isTurn = g.turn === seat && (g.phase === 'draw' || g.phase === 'play');
-    const status = !p.connected ? 'Bağlantı koptu' : p.opened ? `Açtı · ${p.handCount} taş` : `Açmadı · ${p.handCount} taş`;
+    const status = !p.connected
+      ? 'Bağlantı koptu'
+      : p.opened
+        ? p.opened === 'seri'
+          ? `Seri ${p.openValue} ile açtı`
+          : `${p.openValue} çift ile açtı`
+        : `Açmadı · ${p.handCount} taş`;
     const style: React.CSSProperties =
       r === 2
         ? { left: 710, top: 86, width: 260, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 }
@@ -373,6 +381,11 @@ export function GameScreen({ table }: { table: TableView }) {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: r === 2 ? 'flex-start' : 'center', gap: 4, flex: r === 2 ? 1 : undefined, width: r === 2 ? undefined : '100%' }}>
           <span className="who">{p.name}{table.settings.mode === 'esli' && r === 2 ? ' (eşin)' : ''}</span>
           <span className={`st ${p.opened ? 'open' : ''}`}>{status}</span>
+          {p.opened && (
+            <span className="left-badge" aria-label={`Elinde ${p.handCount} taş kaldı`}>
+              <b>{p.handCount}</b> taş kaldı
+            </span>
+          )}
           {isTurn && !p.isBot && deadline && (
             <div className="timebar" aria-hidden="true"><div style={{ width: `${timeFrac * 100}%` }} /></div>
           )}
@@ -494,26 +507,56 @@ export function GameScreen({ table }: { table: TableView }) {
 
       <div className="turn-hint" role="status">{hint}</div>
 
-      <div className="me-card">
-        <div
-          className="ring"
-          role="img"
-          aria-label={myTurn && timeLeft !== null ? `Kalan süre ${timeLeft} saniye` : 'Sıra sende değil'}
-          style={{ background: myTurn ? `conic-gradient(#FFB23F 0 ${timeFrac * 100}%, var(--track) ${timeFrac * 100}% 100%)` : 'var(--track)' }}
-        >
-          <div className="inner">
-            {myTurn && timeLeft !== null ? (
-              <>
-                <span className="baloo" style={{ fontWeight: 800, fontSize: 28 }}>{timeLeft}</span>
-                <span style={{ fontWeight: 800, fontSize: 12 }}>sn</span>
-              </>
-            ) : (
-              <Avatar url={mine.avatar} name={mine.name} size={70} bg="var(--orange)" />
-            )}
+      <div className={`card me-panel ${myTurn ? 'turn' : ''}`}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            className="ring"
+            role="img"
+            aria-label={myTurn && timeLeft !== null ? `Kalan süre ${timeLeft} saniye` : 'Sıra sende değil'}
+            style={{ background: myTurn ? `conic-gradient(#FFB23F 0 ${timeFrac * 100}%, var(--track) ${timeFrac * 100}% 100%)` : 'var(--track)' }}
+          >
+            <div className="inner">
+              {myTurn && timeLeft !== null ? (
+                <>
+                  <span className="baloo" style={{ fontWeight: 800, fontSize: 26 }}>{timeLeft}</span>
+                  <span style={{ fontWeight: 800, fontSize: 11 }}>sn</span>
+                </>
+              ) : (
+                <Avatar url={mine.avatar} name={mine.name} size={62} bg="var(--orange)" />
+              )}
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+            <span style={{ fontWeight: 900, fontSize: 19, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mine.name}</span>
+            <span className={`st ${opened ? 'open' : ''}`}>
+              {opened ? (opened === 'seri' ? `Seri ${mine.openValue} ile açtın` : `${mine.openValue} çift ile açtın`) : 'Henüz açmadın'}
+            </span>
           </div>
         </div>
-        <span style={{ fontWeight: 900, fontSize: 18 }}>Sen</span>
-        <span className="hint">{opened ? `Açtın · ${g.hand.length} taş` : `Açmadın · ${g.hand.length} taş`}</span>
+        <div className="stat-list">
+          {!opened ? (
+            <>
+              <div className="stat">
+                <span>Seri toplamın</span>
+                <b className={seriTotal >= g.thresholds.seri ? 'ok' : ''}>{seriTotal} / {g.thresholds.seri}</b>
+              </div>
+              <div className="stat">
+                <span>Çiftlerin</span>
+                <b className={pairCount >= g.thresholds.cift ? 'ok' : ''}>{pairCount} / {g.thresholds.cift}</b>
+              </div>
+            </>
+          ) : (
+            <div className="stat">
+              <span>İndirilebilir</span>
+              <b>{layable.length} per{layableTotal ? ` · ${layableTotal}` : ''}</b>
+            </div>
+          )}
+          <div className="stat">
+            <span>Elinde</span>
+            <b>{g.hand.length} taş · {handPoints} puan</b>
+          </div>
+        </div>
+        <span className="hint" style={{ fontSize: 13 }}>Okeye çift tıkla, beyaz olsun</span>
       </div>
 
       {/* ---------- ıstaka ---------- */}
@@ -557,15 +600,6 @@ export function GameScreen({ table }: { table: TableView }) {
             })}
           </div>
         ))}
-      </div>
-      <div className="rack-info">
-        <span>
-          {opened
-            ? `İndirilebilir perler: ${layable.length}${layableTotal ? ` (${layableTotal})` : ''}`
-            : `Seri toplamın: ${seriTotal} · Gerekli: ${g.thresholds.seri}`}
-        </span>
-        <span>İpucu: okeye çift tıkla, beyaz olsun</span>
-        <span>Çiftlerin: {pairCount} / {g.thresholds.cift}</span>
       </div>
 
       {/* ---------- sağ panel ---------- */}
