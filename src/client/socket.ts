@@ -1,45 +1,39 @@
 import { io } from 'socket.io-client';
-import type { GameAction } from '../shared/types';
+import type { GameAction, Me } from '../shared/types';
 
-export const socket = io({ autoConnect: true });
-
-function makeId() {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-function read(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function write(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // tarayıcı depolaması kapalıysa yok say
-  }
-}
-
-let playerId = read('yuzbir.playerId');
-if (!playerId) {
-  playerId = makeId();
-  write('yuzbir.playerId', playerId);
-}
-export const PLAYER_ID = playerId;
-
-export function savedName(): string {
-  return read('yuzbir.name') ?? '';
-}
-
-export function saveName(name: string) {
-  write('yuzbir.name', name);
-}
+// Bağlantı sadece giriş yaptıktan sonra açılır; oturum httpOnly çerezle taşınır.
+export const socket = io({ autoConnect: false, withCredentials: true });
 
 export function sendAction(action: GameAction) {
   socket.emit('game:action', action);
 }
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+  }
+}
+
+async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method,
+    credentials: 'same-origin',
+    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(data.error ?? 'Bir hata oluştu, tekrar dene.', res.status);
+  return data as T;
+}
+
+export const api = {
+  me: () => request<Me>('GET', '/api/me'),
+  login: (username: string, password: string) => request<Me>('POST', '/api/login', { username, password }),
+  register: (username: string, password: string) => request<Me>('POST', '/api/register', { username, password }),
+  logout: () => request<{ ok: true }>('POST', '/api/logout'),
+  updateProfile: (patch: { displayName?: string; avatar?: string | null }) => request<Me>('PUT', '/api/profile', patch),
+  peek: <T,>(id: string) => request<T>('GET', `/api/tables/${encodeURIComponent(id)}`),
+};

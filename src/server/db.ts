@@ -1,44 +1,31 @@
-// MongoDB: oyuncu adları ve biten oyunların sonuçları.
-// MONGODB_URI yoksa ya da bağlanılamazsa oyun veritabanısız çalışmaya devam eder.
+// MongoDB bağlantısı ve biten oyunların kaydı.
 import { MongoClient, type Db } from 'mongodb';
 import type { HandResult, Settings } from '../shared/types';
 
 let db: Db | null = null;
 
-export async function connectDb(): Promise<void> {
+export async function connectDb(): Promise<Db | null> {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     console.warn('[db] MONGODB_URI tanımlı değil, veritabanısız çalışılıyor.');
-    return;
+    return null;
   }
   try {
     const client = new MongoClient(uri, { serverSelectionTimeoutMS: 8000 });
     await client.connect();
     db = client.db(process.env.MONGODB_DB || 'yuzbir');
-    await db.collection('players').createIndex({ playerId: 1 }, { unique: true });
     await db.collection('games').createIndex({ finishedAt: -1 });
+    await db.collection('games').createIndex({ 'players.playerId': 1 });
     console.log('[db] MongoDB bağlantısı kuruldu.');
   } catch (err) {
     db = null;
-    console.error('[db] MongoDB bağlantısı kurulamadı, veritabanısız devam ediliyor:', (err as Error).message);
+    console.error('[db] MongoDB bağlantısı kurulamadı:', (err as Error).message);
   }
+  return db;
 }
 
 export function dbReady() {
   return db !== null;
-}
-
-export async function savePlayer(playerId: string, name: string) {
-  if (!db) return;
-  try {
-    await db.collection('players').updateOne(
-      { playerId },
-      { $set: { name, lastSeenAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
-      { upsert: true },
-    );
-  } catch (err) {
-    console.error('[db] oyuncu kaydedilemedi:', (err as Error).message);
-  }
 }
 
 export interface SavedGame {

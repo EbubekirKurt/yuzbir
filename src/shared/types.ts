@@ -86,6 +86,7 @@ export interface PlayerPublic {
   name: string;
   isBot: boolean;
   connected: boolean;
+  avatar: string | null;
   handCount: number;
   opened: OpenKind | null;
   openValue: number;
@@ -125,6 +126,23 @@ export interface SeatView {
   isBot: boolean;
   connected: boolean;
   isYou: boolean;
+  avatar: string | null;
+}
+
+/** Davet linkiyle gelen oyuncuya masaya oturmadan önce gösterilen bilgi. */
+export interface TablePeek {
+  id: string;
+  name: string;
+  settings: Settings;
+  status: 'waiting' | 'playing';
+  seats: ({ name: string; isBot: boolean; avatar: string | null } | null)[];
+}
+
+export interface Me {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
 }
 
 export interface TableView {

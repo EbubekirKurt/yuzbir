@@ -565,7 +565,10 @@ export class Game {
 
   // ---------- görünüm ----------
 
-  view(seat: number, extra: { names: string[]; bots: boolean[]; connected: boolean[]; deadlineIn: number | null }): GameView {
+  view(
+    seat: number,
+    extra: { names: string[]; bots: boolean[]; connected: boolean[]; avatars: (string | null)[]; deadlineIn: number | null },
+  ): GameView {
     const p = this.players[seat];
     const canDeclare =
       this.discardCount === 0 &&
@@ -592,6 +595,7 @@ export class Game {
         name: extra.names[s],
         isBot: extra.bots[s],
         connected: extra.connected[s],
+        avatar: extra.avatars[s],
         handCount: pl.hand.length,
         opened: pl.opened,
         openValue: pl.openValue,

@@ -26,6 +26,7 @@ export interface TileProps {
   white?: boolean; // işaretlenmiş okey
   target?: boolean;
   pending?: boolean;
+  arriving?: boolean; // desteden yeni gelen taş: uçuş animasyonu bitince görünür
   rotate?: number;
   onClick?: () => void;
   onDoubleClick?: () => void;
@@ -37,7 +38,7 @@ export interface TileProps {
 export function TileView(p: TileProps) {
   const { tile } = p;
   const size = p.size ?? 'lg';
-  const cls = ['tile', size === 'lg' ? '' : size, p.selected ? 'selected' : '', p.white ? 'white' : '', p.target ? 'target' : '', p.pending ? 'pending' : '']
+  const cls = ['tile', size === 'lg' ? '' : size, p.selected ? 'selected' : '', p.white ? 'white' : '', p.target ? 'target' : '', p.pending ? 'pending' : '', p.arriving ? 'arrive' : '']
     .filter(Boolean)
     .join(' ');
   const starSize = size === 'lg' ? 34 : size === 'md' ? 26 : 20;

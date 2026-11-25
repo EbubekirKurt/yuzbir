@@ -1,26 +1,43 @@
-// Hızlı uçtan uca deneme: 1 oyuncu + 3 bot ile masa kurar, oyuncu her tur çekip atar.
+// Hızlı uçtan uca deneme: hesap açar, 1 oyuncu + 3 bot ile masa kurar, oyuncu her tur çekip atar.
 // Kullanım: önce sunucuyu başlat, sonra `node scripts/smoke.mjs [url]`
 import { io } from 'socket.io-client';
 
 const url = process.argv[2] ?? 'http://localhost:3001';
-const socket = io(url, { transports: ['websocket'] });
+const username = 'deneme_' + Date.now().toString(36);
+const res = await fetch(`${url}/api/register`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ username, password: 'deneme123' }),
+});
+if (!res.ok) {
+  console.error('Kayıt başarısız:', res.status, await res.text());
+  process.exit(1);
+}
+const cookie = res.headers.get('set-cookie').split(';')[0];
+console.log('Hesap açıldı:', username);
+
+const socket = io(url, { transports: ['websocket'], extraHeaders: { cookie } });
 const started = Date.now();
 let seenHands = 0;
 let acted = '';
+let setup = false;
 
+socket.on('connect_error', (e) => {
+  console.error('Bağlantı hatası:', e.message);
+  process.exit(1);
+});
 socket.on('connect', () => {
-  socket.emit('hello', { playerId: 'smoke-' + Date.now(), name: 'Deneme' });
   socket.emit('table:create', { name: 'Smoke', settings: { mode: 'tekli', katlamali: true, hands: 5, turnSeconds: 30 } });
 });
-
 socket.on('toast', (m) => console.log('[toast]', m));
 
 socket.on('table', (t) => {
   if (!t) return;
   if (t.status === 'waiting') {
-    const empty = t.seats.map((s, i) => (s ? -1 : i)).filter((i) => i >= 0);
-    if (empty.length) empty.forEach((seat) => socket.emit('table:bot', { seat, add: true }));
-    else socket.emit('table:start');
+    if (setup) return;
+    setup = true;
+    [1, 2, 3].forEach((seat) => socket.emit('table:bot', { seat, add: true }));
+    setTimeout(() => socket.emit('table:start'), 300);
     return;
   }
   const g = t.game;

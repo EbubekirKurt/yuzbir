@@ -1,14 +1,43 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
 import { analyzePair, analyzeSet, extendMeld } from '../../shared/melds';
 import { face, faceName, isJoker, sameFace, tileName } from '../../shared/tiles';
-import type { Face, GameAction, TableMeld, TableView, Tile } from '../../shared/types';
+import type { Face, GameAction, GameView, TableMeld, TableView, Tile } from '../../shared/types';
 import { arrangeCift, arrangeSeri, layoutSlots, ROW, slotBlocks, sortTiles } from '../arrange';
+import { Avatar } from '../components/Avatar';
 import { Logo } from '../components/Stage';
 import { TileView } from '../components/TileView';
 import { sendAction, socket } from '../socket';
 import { ranking, ScoreModal } from './ScoreModal';
 
 const AVATAR_BG = ['#FFB23F', '#9FD3FF', '#FFB3C7', '#BFD7FF'];
+
+// Animasyon için sahnedeki (1920×1080) yaklaşık merkezler.
+const DECK_XY = { x: 957, y: 307 };
+const SEAT_XY = [
+  { x: 841, y: 930 }, // ben (ıstaka)
+  { x: 1527, y: 440 }, // sağ
+  { x: 840, y: 121 }, // üst
+  { x: 115, y: 440 }, // sol
+];
+const PILE_XY = [
+  { x: 1370, y: 676 }, // benim attığım (sağ alt)
+  { x: 1370, y: 203 }, // sağdakinin (sağ üst)
+  { x: 297, y: 203 }, // üsttekinin (sol üst)
+  { x: 297, y: 676 }, // soldakinin (sol alt)
+];
+function slotXY(i: number) {
+  const row = i < ROW ? 0 : 1;
+  const col = i % ROW;
+  return { x: 330 + 4 + 14 + col * 66 + 31, y: 808 + 4 + 10 + row * 108 + 46 };
+}
+
+interface Flight {
+  id: number;
+  tile: Tile | null; // null: kapalı taş
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+}
+let flightId = 0;
 
 function initialSlots(hand: Tile[], okey: Face) {
   return layoutSlots({ blocks: [], rest: sortTiles(hand, okey).map((t) => t.id) });
@@ -30,6 +59,11 @@ export function GameScreen({ table }: { table: TableView }) {
   const [now, setNow] = useState(Date.now());
   const handNoRef = useRef(g.handNo);
   const modalHandRef = useRef(g.handNo);
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const [arriving, setArriving] = useState<number | null>(null);
+  const prevGameRef = useRef<GameView | null>(null);
+  const slotsRef = useRef(slots);
+  slotsRef.current = slots;
   const historyRef = useRef(g.history.length);
 
   // Süre göstergesi için yerel son tarih.
@@ -62,6 +96,46 @@ export function GameScreen({ table }: { table: TableView }) {
     });
     setSelected((s) => (s !== null && g.hand.some((t) => t.id === s) ? s : null));
   }, [handKey, g.handNo]);
+
+  // Taş hareketlerini animasyonla göster: desteden çekme, atma, soldan alma.
+  useEffect(() => {
+    const prev = prevGameRef.current;
+    prevGameRef.current = g;
+    if (!prev || prev.handNo !== g.handNo) return;
+    const rel = (seat: number) => (seat - me + 4) % 4;
+    const add: Flight[] = [];
+    if (g.deckCount === prev.deckCount - 1) {
+      const drawer = g.turn;
+      if (drawer === me) {
+        const prevIds = new Set(prev.hand.map((t) => t.id));
+        const fresh = g.hand.find((t) => !prevIds.has(t.id)) ?? null;
+        // Yeni taş, ıstakadaki en sağdaki boş yere konur.
+        const ids = new Set(g.hand.map((t) => t.id));
+        const target = slotsRef.current.map((id) => (id !== null && ids.has(id) ? id : null)).lastIndexOf(null);
+        add.push({ id: ++flightId, tile: fresh, from: DECK_XY, to: target >= 0 ? slotXY(target) : SEAT_XY[0] });
+        if (fresh) setArriving(fresh.id);
+      } else {
+        add.push({ id: ++flightId, tile: null, from: DECK_XY, to: SEAT_XY[rel(drawer)] });
+      }
+    }
+    for (let s = 0; s < 4; s++) {
+      const before = prev.piles[s].count;
+      const after = g.piles[s].count;
+      if (after === before + 1 && g.piles[s].top && prev.pendingLeftId !== g.piles[s].top!.id) {
+        add.push({ id: ++flightId, tile: g.piles[s].top, from: SEAT_XY[rel(s)], to: PILE_XY[rel(s)] });
+      } else if (after === before - 1 && prev.piles[s].top) {
+        const taker = (s + 1) % 4;
+        add.push({ id: ++flightId, tile: prev.piles[s].top, from: PILE_XY[rel(s)], to: SEAT_XY[rel(taker)] });
+      }
+    }
+    if (!add.length) return;
+    setFlights((f) => [...f, ...add]);
+    const ids = new Set(add.map((f) => f.id));
+    setTimeout(() => {
+      setFlights((f) => f.filter((x) => !ids.has(x.id)));
+      setArriving(null);
+    }, 600);
+  }, [table]);
 
   // El bitince puan tablosunu o elin sekmesiyle aç.
   useEffect(() => {
@@ -237,9 +311,7 @@ export function GameScreen({ table }: { table: TableView }) {
         : { left: r === 3 ? 30 : 1452, top: 360, width: r === 3 ? 170 : 150, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 };
     return (
       <div className={`opponent ${isTurn ? 'turn' : ''}`} style={style}>
-        <div className="avatar" style={{ width: r === 2 ? 46 : 58, height: r === 2 ? 46 : 58, fontSize: 24, background: AVATAR_BG[seat] }}>
-          {p.isBot ? 'B' : p.name.slice(0, 1).toUpperCase()}
-        </div>
+        <Avatar url={p.avatar} name={p.name} size={r === 2 ? 46 : 58} bg={AVATAR_BG[seat]} isBot={p.isBot} dim={!p.connected} />
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: r === 2 ? 'flex-start' : 'center', gap: 4, flex: r === 2 ? 1 : undefined, width: r === 2 ? undefined : '100%' }}>
           <span className="who">{p.name}{table.settings.mode === 'esli' && r === 2 ? ' (eşin)' : ''}</span>
           <span className={`st ${p.opened ? 'open' : ''}`}>{status}</span>
@@ -379,7 +451,7 @@ export function GameScreen({ table }: { table: TableView }) {
                 <span style={{ fontWeight: 800, fontSize: 12 }}>sn</span>
               </>
             ) : (
-              <span className="baloo" style={{ fontWeight: 800, fontSize: 28 }}>{mine.name.slice(0, 1).toUpperCase()}</span>
+              <Avatar url={mine.avatar} name={mine.name} size={70} bg="var(--orange)" />
             )}
           </div>
         </div>
@@ -418,6 +490,7 @@ export function GameScreen({ table }: { table: TableView }) {
                       selected={selected === tile.id}
                       white={okeyWhite && isJoker(tile, okey)}
                       pending={g.pendingLeftId === tile.id}
+                      arriving={arriving === tile.id}
                       draggable
                       onDragStart={(e) => {
                         e.dataTransfer.setData('text/plain', String(tile.id));
@@ -506,6 +579,22 @@ export function GameScreen({ table }: { table: TableView }) {
           {selectedTile ? `At: ${tileName(selectedTile)}` : 'Atmak için taş seç'}
         </button>
       </div>
+
+      {flights.map((f) => (
+        <div
+          key={f.id}
+          className="flight"
+          aria-hidden="true"
+          style={{
+            ['--fx' as string]: `${f.from.x - 23}px`,
+            ['--fy' as string]: `${f.from.y - 33}px`,
+            ['--tx' as string]: `${f.to.x - 23}px`,
+            ['--ty' as string]: `${f.to.y - 33}px`,
+          }}
+        >
+          {f.tile ? <TileView tile={f.tile} size="md" /> : <div className="tile md back" />}
+        </div>
+      ))}
 
       {scoreOpen && (
         <ScoreModal

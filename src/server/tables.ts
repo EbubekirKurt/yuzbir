@@ -1,7 +1,7 @@
 // Masalar: oturma, bot, oyun başlatma, süre sayacı ve otomatik oynama.
 import { randomUUID } from 'node:crypto';
 import { Game } from '../shared/game';
-import type { GameAction, LobbyTable, Settings, TableView } from '../shared/types';
+import type { GameAction, LobbyTable, Settings, TablePeek, TableView } from '../shared/types';
 import { saveGame } from './db';
 
 export interface Seat {
@@ -9,6 +9,7 @@ export interface Seat {
   name: string;
   isBot: boolean;
   connected: boolean;
+  avatar: string | null;
 }
 
 const BOT_DELAY_MS = 1100;
@@ -53,12 +54,12 @@ export class Table {
     return this.seats.flatMap((s) => (s && !s.isBot && s.playerId ? [s.playerId] : []));
   }
 
-  sit(playerId: string, name: string, seat?: number): string | null {
+  sit(playerId: string, name: string, avatar: string | null, seat?: number): string | null {
     const current = this.seatOf(playerId);
     if (current >= 0 && (this.game || seat === undefined || seat === current)) {
       // Yeniden bağlanma ya da aynı koltuk.
       this.seats[current]!.connected = true;
-      this.seats[current]!.name = name;
+      this.updateProfile(playerId, name, avatar);
       return null;
     }
     if (this.game) return 'Oyun başladı, masaya oturulamaz.';
@@ -66,7 +67,7 @@ export class Table {
     if (target < 0 || target > 3) return 'Masa dolu.';
     if (this.seats[target] && this.seats[target]!.playerId !== playerId) return 'Bu koltuk dolu.';
     if (current >= 0) this.seats[current] = null;
-    this.seats[target] = { playerId, name, isBot: false, connected: true };
+    this.seats[target] = { playerId, name, isBot: false, connected: true, avatar };
     return null;
   }
 
@@ -86,6 +87,15 @@ export class Table {
     }
   }
 
+  /** Profil (ad / fotoğraf) değişince koltuğu ve oyundaki adı günceller. */
+  updateProfile(playerId: string, name: string, avatar: string | null) {
+    const s = this.seatOf(playerId);
+    if (s < 0) return;
+    this.seats[s]!.name = name;
+    this.seats[s]!.avatar = avatar;
+    if (this.game) this.game.names[s] = name;
+  }
+
   setBot(requester: string, seat: number, add: boolean): string | null {
     if (requester !== this.hostId) return 'Sadece masa sahibi bot ekleyebilir.';
     if (this.game) return 'Oyun başladı.';
@@ -94,7 +104,7 @@ export class Table {
     if (add) {
       if (this.seats[seat]) return 'Bu koltuk dolu.';
       const botNo = this.seats.filter((s) => s?.isBot).length + 1;
-      this.seats[seat] = { playerId: null, name: `Bot ${botNo}`, isBot: true, connected: true };
+      this.seats[seat] = { playerId: null, name: `Bot ${botNo}`, isBot: true, connected: true, avatar: null };
     } else {
       if (!this.seats[seat]?.isBot) return 'Bu koltukta bot yok.';
       this.seats[seat] = null;
@@ -228,6 +238,16 @@ export class Table {
     };
   }
 
+  peek(): TablePeek {
+    return {
+      id: this.id,
+      name: this.name,
+      settings: this.settings,
+      status: this.status,
+      seats: this.seats.map((s) => (s ? { name: s.name, isBot: s.isBot, avatar: s.avatar } : null)),
+    };
+  }
+
   viewFor(playerId: string): TableView {
     const mySeat = this.seatOf(playerId);
     const g = this.game;
@@ -238,7 +258,7 @@ export class Table {
       youAreHost: this.hostId === playerId,
       mySeat: mySeat >= 0 ? mySeat : null,
       seats: this.seats.map((s) =>
-        s ? { name: s.name, isBot: s.isBot, connected: s.connected, isYou: s.playerId === playerId } : null,
+        s ? { name: s.name, isBot: s.isBot, connected: s.connected, isYou: s.playerId === playerId, avatar: s.avatar } : null,
       ),
       status: this.status,
       nextHandIn: this.nextHandAt ? Math.max(0, this.nextHandAt - Date.now()) : null,
@@ -248,6 +268,7 @@ export class Table {
               names: this.seats.map((s) => s!.name),
               bots: this.seats.map((s) => !!s?.isBot),
               connected: this.seats.map((s) => !!s?.connected),
+              avatars: this.seats.map((s) => s?.avatar ?? null),
               deadlineIn: this.deadline ? Math.max(0, this.deadline - Date.now()) : null,
             })
           : null,

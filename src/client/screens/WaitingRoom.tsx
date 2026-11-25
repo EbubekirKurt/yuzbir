@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { TableView } from '../../shared/types';
+import { Avatar } from '../components/Avatar';
 import { Logo } from '../components/Stage';
 import { socket } from '../socket';
 import { rulesSummary } from './CreateTable';
@@ -57,12 +58,11 @@ export function WaitingRoom({ table }: { table: TableView }) {
               const pos = POS[rel];
               return (
                 <div key={seat} style={{ position: 'absolute', ...pos, width: 260, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: 30 }}>
-                  <div
-                    className="avatar"
-                    style={{ width: 58, height: 58, fontSize: 26, background: s ? (s.isBot ? '#BFD7FF' : s.isYou ? 'var(--orange)' : '#9FD3FF') : '#fff', opacity: s && !s.connected ? 0.5 : 1 }}
-                  >
-                    {s ? s.name.slice(0, 1).toUpperCase() : '?'}
-                  </div>
+                  {s ? (
+                    <Avatar url={s.avatar} name={s.name} size={58} isBot={s.isBot} bg={s.isYou ? 'var(--orange)' : undefined} dim={!s.connected} />
+                  ) : (
+                    <div className="avatar" style={{ width: 58, height: 58, fontSize: 26, background: '#fff' }}>?</div>
+                  )}
                   <span style={{ fontWeight: 900, fontSize: 18 }}>
                     {s ? (s.isYou ? `${s.name} (sen)` : s.name) : 'Boş koltuk'}
                   </span>

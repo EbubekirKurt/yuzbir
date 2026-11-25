@@ -251,6 +251,20 @@ button.tile { cursor: pointer; }
 .actions .btn { height: 52px; font-size: 18px; padding: 0 8px; }
 .actions .wide { grid-column: span 2; }
 
+/* ---------- taş uçuş animasyonu ---------- */
+.flight {
+  position: absolute; left: 0; top: 0; z-index: 15; pointer-events: none;
+  animation: fly .55s cubic-bezier(.25, .8, .3, 1) forwards;
+}
+@keyframes fly {
+  from { transform: translate(var(--fx), var(--fy)) scale(1.05); }
+  60% { transform: translate(calc(var(--fx) + (var(--tx) - var(--fx)) * .75), calc(var(--fy) + (var(--ty) - var(--fy)) * .75 - 30px)) scale(1.15); }
+  to { transform: translate(var(--tx), var(--ty)) scale(1); }
+}
+.flight .tile { box-shadow: 0 10px 18px rgba(40, 28, 16, .35); }
+.tile.arrive { animation: appear .55s steps(1, end); }
+@keyframes appear { from { opacity: 0; } to { opacity: 1; } }
+
 /* ---------- modal ---------- */
 .overlay { position: absolute; inset: 0; background: rgba(40, 28, 16, .6); z-index: 20; }
 .modal { left: 220px; top: 70px; width: 1480px; height: 940px; z-index: 21; }

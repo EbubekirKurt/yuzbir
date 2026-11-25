@@ -196,6 +196,13 @@ Tam tablo:
 ## 10. Dijital oyun kuralları
 
 - **Platform:** Web, online çok oyunculu.
+- **Hesap zorunlu:** Oynamak için kullanıcı adı ve şifreyle hesap açılır (e-posta doğrulaması yok).
+  - Kullanıcı adı 3-20 karakter (harf, rakam, nokta, alt çizgi), büyük-küçük harf farkı gözetmeden tekildir. Şifre en az 6 karakterdir.
+  - Şifreler veritabanında scrypt ile, kullanıcıya özel rastgele salt kullanılarak hash'lenmiş olarak tutulur; düz şifre hiçbir yerde saklanmaz.
+  - Oturum 30 gün geçerlidir ve `httpOnly` bir çerezde durur. Veritabanında oturum anahtarının yalnızca SHA-256 özeti tutulur.
+- **Profil:** Her oyuncu profil fotoğrafı ve masada görünen adını değiştirebilir (lobide sağ üstteki adına tıklayarak ya da masaya katılma ekranında). Fotoğraf 192×192 JPEG'e küçültülerek saklanır.
+- **Davet linki:** Linki açan kişi giriş yapmamışsa önce giriş/kayıt ekranına gider. Giriş yaptıktan sonra **masaya katılma ekranı** açılır: masadakileri ve kuralları görür, profilini düzenler, sonra "Masaya otur" der. Lobiden "Katıl" da aynı ekrana götürür.
+- **Taş animasyonları:** Desteden çekilen taş desteden çeken oyuncuya uçar (kendi çektiğin taş yüzü açık olarak ıstakadaki yerine gider, rakibinki kapalı gider). Atılan taş oyuncudan atma yerine, soldan alınan taş da alan oyuncuya uçar.
 - **Süre dolarsa:** Oyun oyuncu adına desteden taş çeker ve **işlek olmayan en düşük taşı** atar.
 - **Okeyi işaretleme:** Istakadaki okey taşı normal taş gibi görünür. Oyuncu okeye **çift tıklarsa** taş beyaza döner ve üzerinde "OKEY" yazar. Tekrar çift tıklarsa eski haline döner. Diğer taşlarda çift tıklamanın etkisi yoktur.
 - **Botlar** (sadece tekli mod):
@@ -243,7 +250,9 @@ Windows'ta testler `c:\` yerine büyük harfli `C:\` yolundan çalıştırılmal
 - `src/server`: Express + Socket.IO sunucusu, masalar, süre sayacı, botlar, MongoDB kaydı
 - `src/client`: React arayüzü (lobi, masa kurma, bekleme salonu, oyun ekranı)
 
-**MongoDB:** Oyuncu adları (`players`) ve biten oyunların sonuçları (`games`) kaydedilir. `MONGODB_URI` yoksa ya da bağlantı kurulamazsa oyun veritabanısız çalışmaya devam eder. Atlas kullanılıyorsa sunucunun IP adresi Atlas'ta **Network Access** listesine eklenmelidir.
+**MongoDB:** Hesaplar (`users`), oturumlar (`sessions`, süresi dolan kendiliğinden silinir) ve biten oyunların sonuçları (`games`) kaydedilir.
+- `MONGODB_URI` hiç tanımlı değilse hesaplar geçici bellekte tutulur (sadece yerel deneme için; sunucu kapanınca silinir). Yerelde böyle başlatmak için: `MONGODB_URI= npm start`.
+- `MONGODB_URI` tanımlı ama bağlanılamıyorsa giriş ve kayıt "Veritabanına bağlanılamadı" hatası verir. Atlas kullanılıyorsa sunucunun IP adresi Atlas'ta **Network Access** listesine eklenmelidir.
 
 ## 13. Canlıya alma
 

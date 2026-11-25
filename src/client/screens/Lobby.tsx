@@ -1,7 +1,6 @@
-import { useState } from 'react';
-import type { LobbyTable } from '../../shared/types';
+import type { LobbyTable, Me } from '../../shared/types';
+import { Avatar } from '../components/Avatar';
 import { Logo } from '../components/Stage';
-import { socket } from '../socket';
 
 export function settingsText(s: LobbyTable['settings']) {
   return [
@@ -13,49 +12,38 @@ export function settingsText(s: LobbyTable['settings']) {
 }
 
 export function Lobby(props: {
-  name: string;
-  onName: (n: string) => void;
+  me: Me;
   tables: LobbyTable[];
   onCreate: () => void;
+  onJoin: (id: string) => void;
+  onProfile: () => void;
+  onLogout: () => void;
 }) {
-  const [draft, setDraft] = useState(props.name);
-  const named = !!props.name;
   return (
     <>
       <div style={{ position: 'absolute', left: 48, top: 32 }}>
         <Logo />
       </div>
+      <div style={{ position: 'absolute', right: 48, top: 30, display: 'flex', gap: 12, alignItems: 'center' }}>
+        <button className="btn" style={{ height: 64, paddingLeft: 8 }} onClick={props.onProfile} aria-label="Profilini düzenle">
+          <Avatar url={props.me.avatarUrl} name={props.me.displayName} size={46} bg="var(--orange)" />
+          {props.me.displayName}
+        </button>
+        <button className="btn danger" onClick={props.onLogout}>Çıkış</button>
+      </div>
       <div className="panel" style={{ left: 360, top: 150, width: 1200, height: 820 }}>
         <div className="panel-head">
-          <h1>{named ? `Hoş geldin, ${props.name}` : 'Hoş geldin'}</h1>
+          <h1>Hoş geldin, {props.me.displayName}</h1>
         </div>
         <div style={{ padding: '32px 40px', display: 'flex', flexDirection: 'column', gap: 26, flex: 1, minHeight: 0 }}>
-          <form
-            style={{ display: 'flex', gap: 14, alignItems: 'flex-end' }}
-            onSubmit={(e) => {
-              e.preventDefault();
-              props.onName(draft);
-            }}
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-              <label className="label" htmlFor="adin">Oyuncu adın</label>
-              <input
-                id="adin"
-                className="input"
-                value={draft}
-                maxLength={16}
-                placeholder="Adını yaz"
-                onChange={(e) => setDraft(e.target.value)}
-              />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+            <div>
+              <h2 className="baloo" style={{ margin: 0, fontSize: 28 }}>Masalar</h2>
+              <span className="hint" style={{ fontSize: 16 }}>
+                Masaya oturmadan önce profilini düzenleyebilirsin: sağ üstteki adına tıkla.
+              </span>
             </div>
-            <button className="btn primary" type="submit" disabled={!draft.trim() || draft.trim() === props.name}>
-              {named ? 'Adı değiştir' : 'Devam'}
-            </button>
-          </form>
-
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h2 className="baloo" style={{ margin: 0, fontSize: 28 }}>Masalar</h2>
-            <button className="btn go big" disabled={!named} onClick={props.onCreate}>
+            <button className="btn go big" onClick={props.onCreate}>
               Yeni Masa Kur
             </button>
           </div>
@@ -76,11 +64,7 @@ export function Lobby(props: {
                 {t.status === 'playing' ? (
                   <span className="chip">Oyunda</span>
                 ) : (
-                  <button
-                    className="btn primary"
-                    disabled={!named || t.seated >= 4}
-                    onClick={() => socket.emit('table:join', { tableId: t.id })}
-                  >
+                  <button className="btn primary" disabled={t.seated >= 4} onClick={() => props.onJoin(t.id)}>
                     Katıl
                   </button>
                 )}
