@@ -175,6 +175,11 @@ export function GameScreen({ table }: { table: TableView }) {
       ? 1
       : 0;
   const pairCount = pairBlocks.length + gostergeExtra;
+  // Açtıktan sonra indirilebilecek gruplar: seri perler; çiftle açan için çiftler de.
+  const layable = opened
+    ? blocks.filter((b) => (b.length >= 3 && analyzeSet(b, okey)) || (opened === 'cift' && b.length === 2 && analyzePair(b, okey)))
+    : [];
+  const layableTotal = layable.reduce((s, b) => s + (b.length >= 3 ? analyzeSet(b, okey)!.value : 0), 0);
 
   const moveTile = (id: number, to: number) => {
     setSlots((prev) => {
@@ -209,7 +214,12 @@ export function GameScreen({ table }: { table: TableView }) {
     act({ type: 'open', kind: 'cift', groups });
   };
 
-  const laySelected = () => {
+  const layMelds = () => {
+    if (selected === null) {
+      if (!layable.length) return setFlash('Istakada indirilecek geçerli per yok. Peri aralarında boşluk bırakarak diz.');
+      act({ type: 'lay', groups: layable.map((b) => b.map((t) => t.id)) });
+      return;
+    }
     const block = blocks.find((b) => b.some((t) => t.id === selected));
     if (!block) return setFlash('İndirmek istediğin grubun bir taşını seç.');
     const valid = block.length === 2 ? analyzePair(block, okey) : analyzeSet(block, okey);
@@ -285,6 +295,7 @@ export function GameScreen({ table }: { table: TableView }) {
   else if (g.phase === 'draw') hint = 'Sıra sende · Desteden çek ya da soldan al';
   else if (g.deckCount === 0) hint = 'Destenin son taşını çektin · Taşını atınca el biter';
   else if (g.pendingLeftId !== null) hint = 'Soldan aldığın taşla aç ya da geri koy';
+  else if (opened && layable.length) hint = `Istakanda ${layable.length} yeni per var · "Perleri indir" ile masaya koy`;
   else hint = opened ? 'İşle, per indir ya da taşını at' : 'Aç ya da bir taş seçip at';
 
   const pileSpot: Record<number, React.CSSProperties> = {
@@ -509,7 +520,11 @@ export function GameScreen({ table }: { table: TableView }) {
         ))}
       </div>
       <div className="rack-info">
-        <span>Seri toplamın: {seriTotal} · Gerekli: {g.thresholds.seri}</span>
+        <span>
+          {opened
+            ? `İndirilebilir perler: ${layable.length}${layableTotal ? ` (${layableTotal})` : ''}`
+            : `Seri toplamın: ${seriTotal} · Gerekli: ${g.thresholds.seri}`}
+        </span>
         <span>İpucu: okeye çift tıkla, beyaz olsun</span>
         <span>Çiftlerin: {pairCount} / {g.thresholds.cift}</span>
       </div>
@@ -562,8 +577,13 @@ export function GameScreen({ table }: { table: TableView }) {
             </button>
           </>
         ) : (
-          <button className="btn wide" disabled={!canPlay || selected === null} onClick={laySelected}>
-            Seçili grubu indir
+          <button
+            className="btn wide"
+            disabled={!canPlay || (selected === null && layable.length === 0)}
+            onClick={layMelds}
+            title="Taş seçiliyse o grubu, seçili değilse ıstakadaki bütün geçerli perleri masaya indirir"
+          >
+            {selected !== null ? 'Seçili grubu indir' : `Perleri indir${layable.length ? ` (${layable.length})` : ''}`}
           </button>
         )}
         <button className="btn" onClick={() => arrange('seri')}>Seri Diz</button>

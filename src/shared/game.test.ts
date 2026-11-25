@@ -211,6 +211,20 @@ describe('el akışı ve cezalar', () => {
     expect(g.takeLeft(1).ok).toBe(false);
   });
 
+  it('açtıktan sonraki turda yeni per indirilebilir', () => {
+    const g = setup();
+    const { melds, hand } = openingHand();
+    g.players[0].hand = hand;
+    g.turn = 0;
+    g.phase = 'play';
+    expect(g.open(0, 'seri', melds.map((m) => m.map((x) => x.id))).ok).toBe(true);
+    const elevens = [t('Y', 11), t('R', 11), t('K', 11)];
+    g.players[0].hand.push(...elevens);
+    expect(g.lay(0, [elevens.map((x) => x.id)]).ok).toBe(true);
+    expect(g.table.filter((m) => m.owner === 0)).toHaveLength(5);
+    expect(g.players[0].hand).toHaveLength(2);
+  });
+
   it('işleme sınırı: bir uca turda en fazla 2 taş', () => {
     const g = setup();
     const { melds, hand } = openingHand();
