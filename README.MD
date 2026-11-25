@@ -111,6 +111,7 @@ Masayı kuran kişi şunları seçer:
 - **İşleme sınırı (herkes için):** Bir perin **her ucuna bir turda en fazla 2 taş** işlenebilir. Sonraki turda aynı uca yine 2 taş işlenebilir.
   - Örneğin masada sarı 6-7-8 varsa bir turda sola 4-5, sağa 9-10 işlenebilir.
 - **Okeyi değiştirme:** Elini açmış bir oyuncu, masadaki bir perde okeyin yerine geçtiği gerçek taşı koyup okeyi alabilir.
+  - **Aynı sayılı 3 taşlı grupta okey alınamaz**, çünkü okeyin hangi rengin yerine geçtiği belli değildir. Örneğin `mavi 10 - kırmızı 10 - okey` grubunda siyah 10 da sarı 10 da okeyi alamaz. Eksik renklerden biri gruba **işlenebilir**; grup 4 taş olunca okeyin kalan rengi temsil ettiği kesinleşir ve o rengin sahibi okeyi alabilir.
   - Okeyi o pere koyan oyuncu **101 ceza** yer.
   - Okeyi alan kişi o oyuncunun **eşiyse** ceza yazılmaz.
 

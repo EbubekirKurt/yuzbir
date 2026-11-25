@@ -1,5 +1,5 @@
 // 101 Okey oyun motoru. Kurallar için README.MD esas alınır.
-import { analyzePair, analyzeSet, extendMeld, isIslek, type MeldAnalysis } from './melds';
+import { analyzeGroup, analyzePair, analyzeSet, extendMeld, isIslek, type MeldAnalysis } from './melds';
 import {
   createTiles,
   face,
@@ -379,6 +379,14 @@ export class Game {
       meld.tiles.push(tile);
       meld.reps.push(ext.rep);
     }
+    if (meld.kind === 'group') {
+      // Grup 4 taş olunca okeyin hangi rengin yerine geçtiği kesinleşir.
+      const regrouped = analyzeGroup(meld.tiles, this.okey);
+      if (regrouped) {
+        meld.tiles = regrouped.tiles;
+        meld.reps = regrouped.reps;
+      }
+    }
     this.removeFromHand(seat, [tileId]);
     this.addLog(`${this.name(seat)} ${tileName(tile)} işledi.`);
     return ok();
@@ -394,6 +402,8 @@ export class Game {
     const target = meld.tiles[pos];
     if (!target || !isJoker(target, this.okey)) return fail('Orada okey yok.');
     if (isJoker(tile, this.okey)) return fail('Okeyin yerine gerçek taşı koymalısın.');
+    if (meld.kind === 'group' && meld.tiles.length < 4)
+      return fail('Bu grupta okeyin hangi taşın yerine geçtiği belli değil, okey alınamaz. Eksik taşı işleyebilirsin.');
     const f = face(tile, this.okey);
     const rep = meld.reps[pos];
     if (f.color !== rep.color || f.num !== rep.num)

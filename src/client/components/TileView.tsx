@@ -1,4 +1,4 @@
-import type { DragEvent } from 'react';
+import type { PointerEvent } from 'react';
 import { isJoker } from '../../shared/tiles';
 import type { Face, Tile } from '../../shared/types';
 
@@ -30,8 +30,12 @@ export interface TileProps {
   rotate?: number;
   onClick?: () => void;
   onDoubleClick?: () => void;
-  draggable?: boolean;
-  onDragStart?: (e: DragEvent) => void;
+  /** Işaretçiyle sürükleme (fare, dokunmatik, kalem). */
+  onPointerDown?: (e: PointerEvent<HTMLButtonElement>) => void;
+  onPointerMove?: (e: PointerEvent<HTMLButtonElement>) => void;
+  onPointerUp?: (e: PointerEvent<HTMLButtonElement>) => void;
+  onPointerCancel?: (e: PointerEvent<HTMLButtonElement>) => void;
+  dim?: boolean; // sürüklenirken yerinde soluk görünür
   label?: string;
 }
 
@@ -58,8 +62,12 @@ export function TileView(p: TileProps) {
       <span className="dot" style={{ background: COLOR_VAR[tile.color] }} />
     </>
   );
-  const style = p.rotate ? { transform: `rotate(${p.rotate}deg)` } : undefined;
-  if (p.onClick || p.onDoubleClick || p.draggable) {
+  const style: React.CSSProperties = {
+    ...(p.rotate ? { transform: `rotate(${p.rotate}deg)` } : {}),
+    ...(p.onPointerDown ? { touchAction: 'none' } : {}),
+    ...(p.dim ? { opacity: 0.3 } : {}),
+  };
+  if (p.onClick || p.onDoubleClick || p.onPointerDown) {
     return (
       <button
         type="button"
@@ -69,8 +77,11 @@ export function TileView(p: TileProps) {
         aria-pressed={p.selected}
         onClick={p.onClick}
         onDoubleClick={p.onDoubleClick}
-        draggable={p.draggable}
-        onDragStart={p.onDragStart}
+        draggable={false}
+        onPointerDown={p.onPointerDown}
+        onPointerMove={p.onPointerMove}
+        onPointerUp={p.onPointerUp}
+        onPointerCancel={p.onPointerCancel}
       >
         {content}
       </button>

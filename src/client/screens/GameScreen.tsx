@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { analyzePair, analyzeSet, extendMeld } from '../../shared/melds';
 import { face, faceName, isJoker, sameFace, tileName } from '../../shared/tiles';
 import type { Face, GameAction, GameView, TableMeld, TableView, Tile } from '../../shared/types';
@@ -53,6 +53,9 @@ export function GameScreen({ table }: { table: TableView }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [okeyWhite, setOkeyWhite] = useState(false);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  const [drag, setDrag] = useState<{ id: number; x: number; y: number } | null>(null);
+  const dragRef = useRef<{ id: number; startX: number; startY: number; active: boolean } | null>(null);
+  const suppressClick = useRef(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [scoreTab, setScoreTab] = useState('genel');
   const [flash, setFlash] = useState<string | null>(null);
@@ -252,7 +255,7 @@ export function GameScreen({ table }: { table: TableView }) {
     return (g.extendCount[`${m.id}:${side}`] ?? 0) < 2;
   };
   const swapTarget = (m: TableMeld, idx: number) =>
-    canWorkTable && !!selectedTile && isJoker(m.tiles[idx], okey) && !isJoker(selectedTile, okey) && sameFace(face(selectedTile, okey), m.reps[idx]);
+    canWorkTable && !!selectedTile && !(m.kind === 'group' && m.tiles.length < 4) && isJoker(m.tiles[idx], okey) && !isJoker(selectedTile, okey) && sameFace(face(selectedTile, okey), m.reps[idx]);
 
   const renderMeld = (m: TableMeld) => (
     <div key={m.id} className="meld-row">
@@ -305,11 +308,55 @@ export function GameScreen({ table }: { table: TableView }) {
     3: { left: 14, bottom: 12 },
   };
 
-  const onDropDiscard = (e: DragEvent) => {
-    e.preventDefault();
-    const id = Number(e.dataTransfer.getData('text/plain'));
-    if (canPlay && Number.isFinite(id)) act({ type: 'discard', tileId: id });
+  // ---------- ıstakada sürükleme (fare, dokunmatik ve kalemle aynı çalışır) ----------
+  const toStage = (clientX: number, clientY: number) => {
+    const el = document.querySelector('.stage') as HTMLElement | null;
+    if (!el) return { x: clientX, y: clientY };
+    const r = el.getBoundingClientRect();
+    const scale = r.width / 1920 || 1;
+    return { x: (clientX - r.left) / scale, y: (clientY - r.top) / scale };
   };
+  const dropTargetAt = (clientX: number, clientY: number) => {
+    const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+    const slot = el?.closest('[data-slot]') as HTMLElement | null;
+    if (slot) return { slot: Number(slot.dataset.slot) };
+    if (el?.closest('[data-discard]')) return { discard: true };
+    return null;
+  };
+  const onTilePointerDown = (id: number) => (e: PointerEvent<HTMLButtonElement>) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    dragRef.current = { id, startX: e.clientX, startY: e.clientY, active: false };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onTilePointerMove = (e: PointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    if (!d.active) {
+      if (Math.hypot(e.clientX - d.startX, e.clientY - d.startY) < 6) return;
+      d.active = true;
+    }
+    setDrag({ id: d.id, ...toStage(e.clientX, e.clientY) });
+    const target = dropTargetAt(e.clientX, e.clientY);
+    setDragOver(target && 'slot' in target ? target.slot! : null);
+  };
+  const endDrag = (e: PointerEvent<HTMLButtonElement>, cancelled: boolean) => {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    if (!d?.active) return; // sürükleme olmadı: normal tıklama
+    suppressClick.current = true;
+    setTimeout(() => (suppressClick.current = false), 0);
+    setDrag(null);
+    setDragOver(null);
+    if (cancelled) return;
+    const target = dropTargetAt(e.clientX, e.clientY);
+    if (target && 'slot' in target) moveTile(d.id, target.slot!);
+    else if (target && 'discard' in target && canPlay) {
+      act({ type: 'discard', tileId: d.id });
+      setSelected(null);
+    }
+  };
+  const dragTile = drag ? tilesById.get(drag.id) : undefined;
 
   const opponent = (r: 1 | 2 | 3) => {
     const seat = seatAt(r);
@@ -414,8 +461,7 @@ export function GameScreen({ table }: { table: TableView }) {
               key={r}
               className="pile"
               style={{ ...pileSpot[r], flexDirection: isLeft ? 'row' : 'column', alignItems: isLeft ? 'flex-end' : 'center', gap: isLeft ? 10 : 4 }}
-              onDragOver={isMine && canPlay ? (e) => e.preventDefault() : undefined}
-              onDrop={isMine ? onDropDiscard : undefined}
+              data-discard={isMine ? '' : undefined}
             >
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                 <div className={isMine && canPlay ? 'drop' : ''}>
@@ -481,17 +527,7 @@ export function GameScreen({ table }: { table: TableView }) {
                 <div
                   key={i}
                   className={`slot ${dragOver === i ? 'over' : ''} ${!tile && selected !== null ? 'empty-click' : ''}`}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setDragOver(i);
-                  }}
-                  onDragLeave={() => setDragOver((d) => (d === i ? null : d))}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setDragOver(null);
-                    const dragged = Number(e.dataTransfer.getData('text/plain'));
-                    if (Number.isFinite(dragged)) moveTile(dragged, i);
-                  }}
+                  data-slot={i}
                   onClick={!tile && selected !== null ? () => moveTile(selected, i) : undefined}
                 >
                   {tile && (
@@ -502,12 +538,15 @@ export function GameScreen({ table }: { table: TableView }) {
                       white={okeyWhite && isJoker(tile, okey)}
                       pending={g.pendingLeftId === tile.id}
                       arriving={arriving === tile.id}
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('text/plain', String(tile.id));
-                        e.dataTransfer.effectAllowed = 'move';
+                      dim={drag?.id === tile.id}
+                      onPointerDown={onTilePointerDown(tile.id)}
+                      onPointerMove={onTilePointerMove}
+                      onPointerUp={(e) => endDrag(e, false)}
+                      onPointerCancel={(e) => endDrag(e, true)}
+                      onClick={() => {
+                        if (suppressClick.current) return;
+                        setSelected((s) => (s === tile.id ? null : tile.id));
                       }}
-                      onClick={() => setSelected((s) => (s === tile.id ? null : tile.id))}
                       onDoubleClick={() => {
                         if (isJoker(tile, okey)) setOkeyWhite((w) => !w);
                       }}
@@ -599,6 +638,12 @@ export function GameScreen({ table }: { table: TableView }) {
           {selectedTile ? `At: ${tileName(selectedTile)}` : 'Atmak için taş seç'}
         </button>
       </div>
+
+      {drag && dragTile && (
+        <div className="drag-ghost" style={{ left: drag.x - 29, top: drag.y - 40 }} aria-hidden="true">
+          <TileView tile={dragTile} okey={okey} white={okeyWhite && isJoker(dragTile, okey)} />
+        </div>
+      )}
 
       {flights.map((f) => (
         <div

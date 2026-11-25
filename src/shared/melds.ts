@@ -119,12 +119,13 @@ export function extendMeld(
   if (meld.kind === 'group') {
     if (meld.tiles.length >= 4) return null;
     const num = meld.reps[0].num;
-    const used = meld.reps.map((r) => r.color);
+    // Okeyin temsil ettiği renk 3'lü grupta kesin değildir; sadece gerçek taşların renkleri doludur.
+    const realColors = meld.tiles.filter((t) => !isJoker(t, okey)).map((t) => face(t, okey).color);
     if (joker) {
-      const color = COLORS.find((c) => !used.includes(c))!;
+      const color = COLORS.find((c) => !meld.reps.some((r) => r.color === c))!;
       return { side: 'end', rep: { color, num } };
     }
-    if (f.num !== num || used.includes(f.color)) return null;
+    if (f.num !== num || realColors.includes(f.color)) return null;
     return { side: 'end', rep: f };
   }
   const color = meld.reps[0].color;

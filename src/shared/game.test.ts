@@ -299,3 +299,46 @@ describe('puanlama', () => {
     }
   });
 });
+
+describe('okey alma', () => {
+  /** Masada seat 1'in mavi 10 - kırmızı 10 - okey grubu, seat 0 açmış. */
+  function groupWithOkey() {
+    const g = setup();
+    const { melds, hand } = openingHand();
+    g.players[0].hand = hand;
+    g.turn = 0;
+    g.phase = 'play';
+    g.open(0, 'seri', melds.map((m) => m.map((x) => x.id)));
+    g.table.push({
+      id: 999,
+      owner: 1,
+      kind: 'group',
+      tiles: [t('B', 10), t('R', 10), okeyTile()],
+      reps: [{ color: 'B', num: 10 }, { color: 'R', num: 10 }, { color: 'Y', num: 10 }],
+    });
+    return g;
+  }
+
+  it('3 taşlı grupta okey alınamaz (siyah 10 da, sarı 10 da)', () => {
+    const g = groupWithOkey();
+    const k10 = t('K', 10);
+    const y10 = t('Y', 10);
+    g.players[0].hand.push(k10, y10);
+    expect(g.swapOkey(0, k10.id, 999, 2).ok).toBe(false);
+    expect(g.swapOkey(0, y10.id, 999, 2).ok).toBe(false);
+  });
+
+  it('eksik renk işlenince grup 4 olur, okey kalan rengi temsil eder ve alınabilir', () => {
+    const g = groupWithOkey();
+    const y10 = t('Y', 10);
+    const k10 = t('K', 10);
+    g.players[0].hand.push(y10, k10, t('B', 1));
+    expect(g.extend(0, y10.id, 999).ok).toBe(true);
+    const meld = g.table.find((m) => m.id === 999)!;
+    expect(meld.tiles).toHaveLength(4);
+    const jokerPos = meld.tiles.findIndex((x) => x.color === 'R' && x.num === 8);
+    expect(meld.reps[jokerPos]).toEqual({ color: 'K', num: 10 });
+    expect(g.swapOkey(0, k10.id, 999, jokerPos).ok).toBe(true);
+    expect(g.players[1].penalties[0]).toEqual({ amount: 101, reason: 'Okeyi alındı' });
+  });
+});
