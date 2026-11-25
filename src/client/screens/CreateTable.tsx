@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Settings } from '../../shared/types';
-import { Logo, Scene } from '../components/Stage';
+import { Logo } from '../components/Stage';
 import { socket } from '../socket';
 
 function Pills<T extends string | number>(props: {
@@ -58,7 +58,6 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
 
   return (
     <>
-      <Scene />
       <div style={{ position: 'absolute', left: 48, top: 32 }}>
         <Logo />
       </div>

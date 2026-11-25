@@ -36,10 +36,10 @@ button:disabled { cursor: not-allowed; }
 .baloo { font-family: 'Baloo 2', 'Nunito', sans-serif; }
 
 /* ---------- sahne ---------- */
-.stage-wrap { position: fixed; inset: 0; overflow: hidden; background: #7cc8ee; }
+.stage-wrap { position: fixed; inset: 0; overflow: hidden; background: #e9c48a; }
 .stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden; }
 .scene { position: absolute; inset: 0; background: linear-gradient(#7cc8ee, #bfe6f2 45%, #ffe2b0 70%); }
-.scene .sun { position: absolute; right: 300px; top: 60px; width: 120px; height: 120px; border-radius: 50%; background: #ffd45c; border: 4px solid #f2a93b; }
+.scene .sun { position: absolute; right: 16%; top: 5.5%; width: min(11vh, 6.25vw); aspect-ratio: 1; border-radius: 50%; background: #ffd45c; border: 4px solid #f2a93b; }
 .scene .cloud { position: absolute; border-radius: 999px; background: #fff; opacity: .88; }
 .scene svg { position: absolute; left: 0; bottom: 0; }
 
@@ -232,8 +232,10 @@ button.tile { cursor: pointer; }
 .rack-info { position: absolute; left: 330px; top: 1050px; width: 1022px; display: flex; justify-content: space-between; font-weight: 800; font-size: 15px; }
 
 .side { position: absolute; left: 1620px; width: 272px; }
-.side h2 { margin: 0; font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 22px; }
-.score-mini { top: 104px; padding: 14px 16px; }
+.side-col { position: absolute; left: 1620px; top: 104px; width: 272px; height: 690px; display: flex; flex-direction: column; gap: 16px; }
+.side-col > .card { position: static; }
+.side h2, .side-col h2 { margin: 0; font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 22px; }
+.score-mini { flex: none; padding: 14px 16px; }
 .mini-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px; padding: 7px 0; border-top: 2px solid var(--line); font-weight: 700; text-align: right; font-size: 15px; }
 .mini-row.head { border-top: 0; color: var(--ink-soft); font-weight: 800; padding: 4px 0; }
 .mini-row > :first-child { text-align: left; font-weight: 900; }
@@ -241,7 +243,7 @@ button.tile { cursor: pointer; }
   width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: #fff;
   border: 3px solid var(--ink); border-radius: 12px; box-shadow: 0 4px 0 var(--ink); cursor: pointer;
 }
-.log-card { top: 330px; height: 470px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.log-card { flex: 1; min-height: 0; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .log-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .log-item { padding: 7px 10px; border-radius: 10px; background: #fff; font-weight: 700; font-size: 14px; line-height: 1.3; }
 .log-item.warn { background: #ffe1da; color: #8a1f1a; font-weight: 800; }

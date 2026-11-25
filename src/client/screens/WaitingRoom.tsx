@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { TableView } from '../../shared/types';
-import { Logo, Scene } from '../components/Stage';
+import { Logo } from '../components/Stage';
 import { socket } from '../socket';
 import { rulesSummary } from './CreateTable';
 import { settingsText } from './Lobby';
@@ -32,7 +32,6 @@ export function WaitingRoom({ table }: { table: TableView }) {
 
   return (
     <>
-      <Scene />
       <div style={{ position: 'absolute', left: 48, top: 32 }}>
         <Logo />
       </div>

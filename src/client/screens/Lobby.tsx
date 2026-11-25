@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { LobbyTable } from '../../shared/types';
-import { Logo, Scene } from '../components/Stage';
+import { Logo } from '../components/Stage';
 import { socket } from '../socket';
 
 export function settingsText(s: LobbyTable['settings']) {
@@ -22,7 +22,6 @@ export function Lobby(props: {
   const named = !!props.name;
   return (
     <>
-      <Scene />
       <div style={{ position: 'absolute', left: 48, top: 32 }}>
         <Logo />
       </div>

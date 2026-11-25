@@ -3,7 +3,7 @@ import { analyzePair, analyzeSet, extendMeld } from '../../shared/melds';
 import { face, faceName, isJoker, sameFace, tileName } from '../../shared/tiles';
 import type { Face, GameAction, TableMeld, TableView, Tile } from '../../shared/types';
 import { arrangeCift, arrangeSeri, layoutSlots, ROW, slotBlocks, sortTiles } from '../arrange';
-import { Logo, Scene } from '../components/Stage';
+import { Logo } from '../components/Stage';
 import { TileView } from '../components/TileView';
 import { sendAction, socket } from '../socket';
 import { ranking, ScoreModal } from './ScoreModal';
@@ -257,7 +257,6 @@ export function GameScreen({ table }: { table: TableView }) {
 
   return (
     <>
-      <Scene />
       <div className="topbar">
         <Logo />
         <span className="chip white">El {g.handNo} / {g.totalHands}</span>
@@ -443,7 +442,8 @@ export function GameScreen({ table }: { table: TableView }) {
       </div>
 
       {/* ---------- sağ panel ---------- */}
-      <div className="side card score-mini">
+      <div className="side-col">
+      <div className="card score-mini">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <h2>Puan tablosu</h2>
           <button className="icon-btn" aria-label="Puan tablosunu büyüt" onClick={() => { setScoreTab('genel'); setScoreOpen(true); }}>
@@ -468,13 +468,14 @@ export function GameScreen({ table }: { table: TableView }) {
         </div>
       </div>
 
-      <div className="side card log-card">
+      <div className="card log-card">
         <h2>Masa akışı</h2>
         <div className="log-list">
           {[...g.log].reverse().map((l) => (
             <div key={l.id} className={`log-item ${l.warn ? 'warn' : ''}`}>{l.text}</div>
           ))}
         </div>
+      </div>
       </div>
 
       <div className="side actions">
