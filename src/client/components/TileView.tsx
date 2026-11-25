@@ -53,7 +53,7 @@ export function TileView(p: TileProps) {
     <Star size={starSize} fill="#1F6B50" />
   ) : (
     <>
-      <span className="n" style={{ color: COLOR_VAR[tile.color] }}>{tile.num}</span>
+      <span className={`n c-${tile.color}`} style={{ color: COLOR_VAR[tile.color] }}>{tile.num}</span>
       <span className="dot" style={{ background: COLOR_VAR[tile.color] }} />
     </>
   );

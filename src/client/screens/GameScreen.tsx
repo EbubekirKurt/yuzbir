@@ -208,7 +208,8 @@ export function GameScreen({ table }: { table: TableView }) {
   else if (g.phase === 'handEnd') hint = 'El bitti';
   else if (g.phase === 'gameOver') hint = 'Oyun bitti';
   else if (!myTurn) hint = `Sıra ${g.players[g.turn].name}'de`;
-  else if (g.phase === 'draw') hint = g.finalTurn ? 'Deste bitti · Soldan al ya da pas geç' : 'Sıra sende · Desteden çek ya da soldan al';
+  else if (g.phase === 'draw') hint = 'Sıra sende · Desteden çek ya da soldan al';
+  else if (g.deckCount === 0) hint = 'Destenin son taşını çektin · Taşını atınca el biter';
   else if (g.pendingLeftId !== null) hint = 'Soldan aldığın taşla aç ya da geri koy';
   else hint = opened ? 'İşle, per indir ya da taşını at' : 'Aç ya da bir taş seçip at';
 
@@ -294,9 +295,9 @@ export function GameScreen({ table }: { table: TableView }) {
               <div className="layer" style={{ left: 8, top: 0 }} />
               <div className="layer" style={{ left: 4, top: 6 }} />
               <button
-                className={canDraw && !g.finalTurn ? 'can' : ''}
+                className={canDraw ? 'can' : ''}
                 aria-label={`Desteden taş çek, ${g.deckCount} taş kaldı`}
-                disabled={!canDraw || g.finalTurn || g.deckCount === 0}
+                disabled={!canDraw || g.deckCount === 0}
                 onClick={() => act({ type: 'draw' })}
               >
                 {g.deckCount}
@@ -495,8 +496,6 @@ export function GameScreen({ table }: { table: TableView }) {
         <button className="btn" onClick={() => arrange('cift')}>Çift Diz</button>
         {g.pendingLeftId !== null ? (
           <button className="btn wide" onClick={() => act({ type: 'cancelLeft' })}>Soldan aldığımı geri koy</button>
-        ) : g.finalTurn && g.phase === 'draw' ? (
-          <button className="btn wide" onClick={() => act({ type: 'pass' })}>Pas geç</button>
         ) : g.canDeclareGosterge ? (
           <button className="btn wide go" onClick={() => act({ type: 'declareGosterge' })}>Göstergeyi bildir</button>
         ) : (

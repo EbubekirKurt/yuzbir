@@ -181,8 +181,8 @@ Tam tablo:
 
 ### 9.4 Destenin bitmesi
 
-- Desteden son taş çekilip atıldıktan sonra, o taşı **soldan alan oyuncu** hâlâ açabilir ya da işleyebilir.
-- Bu oyuncu **sağına taş attığında** el biter.
+- Destenin **son taşını çeken oyuncu** o tur hâlâ açabilir ve işleyebilir.
+- Bu oyuncu **sağına taş attığında** el biter. Sıradaki oyuncu artık oynamaz, atılan taşı soldan da alamaz.
 - Biten oyuncu yoksa herkesin elinde kalan hesaplanıp tabloya yazılır.
 
 ### 9.5 Oyun sonu

@@ -196,6 +196,21 @@ describe('el akışı ve cezalar', () => {
     expect(g.phase).toBe('draw');
   });
 
+  it('destenin son taşını çeken atınca el biter, sıradaki soldan alamaz', () => {
+    const g = setup();
+    g.deck = [t('K', 7)];
+    g.players[0].hand = [t('Y', 1), t('B', 4)];
+    g.turn = 0;
+    g.phase = 'draw';
+    expect(g.draw(0).ok).toBe(true);
+    expect(g.deck).toHaveLength(0);
+    g.discard(0, g.players[0].hand[0].id);
+    expect(g.phase).toBe('handEnd');
+    expect(g.history).toHaveLength(1);
+    expect(g.history[0].finisher).toBeNull();
+    expect(g.takeLeft(1).ok).toBe(false);
+  });
+
   it('işleme sınırı: bir uca turda en fazla 2 taş', () => {
     const g = setup();
     const { melds, hand } = openingHand();

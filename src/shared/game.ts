@@ -66,8 +66,7 @@ export class Game {
   pendingLeft: { tile: Tile; from: number } | null = null;
   extendCount: Record<string, number> = {};
   discardCount = 0;
-  deckEmptyBy: number | null = null;
-  finalTurnSeat: number | null = null;
+  deckEmptyBy: number | null = null; // destenin son taşını çeken
   log: LogEntry[] = [];
   private logId = 0;
   private meldId = 0;
@@ -158,7 +157,6 @@ export class Game {
     this.extendCount = {};
     this.discardCount = 0;
     this.deckEmptyBy = null;
-    this.finalTurnSeat = null;
     this.log = [];
     this.addLog(
       `El ${this.handNo} başladı. Gösterge ${faceName(g)}, okey ${faceName(this.okey)}. ${this.name(this.starter)} başlıyor.`,
@@ -181,8 +179,6 @@ export class Game {
         return this.takeLeft(seat);
       case 'cancelLeft':
         return this.cancelLeft(seat);
-      case 'pass':
-        return this.pass(seat);
       case 'open':
         return this.open(seat, action.kind, action.groups);
       case 'lay':
@@ -203,14 +199,13 @@ export class Game {
   draw(seat: number): Result {
     const err = this.checkTurn(seat, 'draw');
     if (err) return err;
-    if (this.finalTurnSeat === seat) return fail('Deste bitti: soldan alabilir ya da pas geçebilirsin.');
     const tile = this.deck.pop();
     if (!tile) return fail('Destede taş kalmadı.');
     this.players[seat].hand.push(tile);
     this.phase = 'play';
     if (this.deck.length === 0) {
       this.deckEmptyBy = seat;
-      this.addLog('Destedeki son taş çekildi.');
+      this.addLog(`${this.name(seat)} destedeki son taşı çekti. Taşını atınca el biter.`);
     }
     return ok();
   }
@@ -243,15 +238,6 @@ export class Game {
     this.pendingLeft = null;
     this.phase = 'draw';
     this.addLog(`${this.name(seat)} soldan aldığı taşı geri koydu.`);
-    return ok();
-  }
-
-  pass(seat: number): Result {
-    const err = this.checkTurn(seat, 'draw');
-    if (err) return err;
-    if (this.finalTurnSeat !== seat) return fail('Pas geçemezsin, desteden çekmelisin.');
-    this.addLog(`${this.name(seat)} pas geçti.`);
-    this.endHand(null, null);
     return ok();
   }
 
@@ -446,13 +432,10 @@ export class Game {
       this.endHand(seat, tile);
       return ok();
     }
-    if (this.finalTurnSeat === seat) {
+    if (this.deckEmptyBy === seat) {
+      // Destenin son taşını çeken oyuncu taşını attı: el biter, sıradaki oyuncu oynamaz.
       this.endHand(null, null);
       return ok();
-    }
-    if (this.deckEmptyBy !== null && this.deck.length === 0) {
-      // Son taşı çeken attı: sağındaki sadece soldan alabilir ya da pas geçer.
-      this.finalTurnSeat = next(seat);
     }
     this.turn = next(seat);
     this.phase = 'draw';
@@ -490,10 +473,7 @@ export class Game {
     if (this.turn !== seat || this.phase === 'handEnd' || this.phase === 'gameOver') return;
     if (this.pendingLeft && !this.players[seat].opened) this.cancelLeft(seat);
     if (this.phase === 'draw') {
-      if (this.finalTurnSeat === seat || this.deck.length === 0) {
-        this.pass(seat);
-        return;
-      }
+      if (this.deck.length === 0) return;
       this.draw(seat);
     }
     if (this.phase === 'play' && this.turn === seat) {
@@ -617,7 +597,6 @@ export class Game {
         openValue: pl.openValue,
       })),
       thresholds: this.thresholds(seat),
-      finalTurn: this.finalTurnSeat === seat && this.turn === seat,
       canDeclareGosterge: canDeclare,
       gostergeDeclared: p.gostergeTileId !== null,
       gostergeTileId: p.gostergeTileId,

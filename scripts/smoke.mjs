@@ -38,7 +38,7 @@ socket.on('table', (t) => {
   const key = `${g.handNo}:${g.phase}:${g.hand.length}:${g.deckCount}`;
   if (key === acted) return;
   acted = key;
-  if (g.phase === 'draw') socket.emit('game:action', g.finalTurn ? { type: 'pass' } : { type: 'draw' });
+  if (g.phase === 'draw') socket.emit('game:action', { type: 'draw' });
   else if (g.phase === 'play') socket.emit('game:action', { type: 'discard', tileId: g.hand[0].id });
 });
 

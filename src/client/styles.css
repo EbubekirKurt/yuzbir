@@ -16,7 +16,7 @@
   --coral: #ff8f7a;
   --sand: #f4e2be;
   --line: #e8d6b4;
-  --c-Y: #b86a00;
+  --c-Y: #e8b100;
   --c-R: #d0302a;
   --c-K: #2a2320;
   --c-B: #1d5fc4;
@@ -129,6 +129,7 @@ button:disabled { cursor: not-allowed; }
   font-family: 'Baloo 2', sans-serif; font-weight: 800; line-height: 1; user-select: none;
 }
 .tile .n { font-size: 34px; }
+.tile .n.c-Y { text-shadow: 0 0 1px #6b4e00, 0 1px 0 #6b4e00; }
 .tile .dot { width: 9px; height: 9px; border-radius: 50%; }
 .tile.md { width: 46px; height: 66px; border-radius: 8px; box-shadow: 0 3px 0 var(--tile-edge); }
 .tile.md .n { font-size: 26px; }

@@ -109,7 +109,6 @@ export interface GameView {
   openings: Opening[];
   players: PlayerPublic[];
   thresholds: { seri: number; cift: number };
-  finalTurn: boolean;
   canDeclareGosterge: boolean;
   gostergeDeclared: boolean;
   gostergeTileId: number | null;
@@ -152,7 +151,6 @@ export type GameAction =
   | { type: 'draw' }
   | { type: 'takeLeft' }
   | { type: 'cancelLeft' }
-  | { type: 'pass' }
   | { type: 'open'; kind: OpenKind; groups: number[][] }
   | { type: 'lay'; groups: number[][] }
   | { type: 'extend'; tileId: number; meldId: number; side?: 'start' | 'end' }
