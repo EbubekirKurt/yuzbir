@@ -262,8 +262,9 @@ export class Game {
       }
       let m: MeldAnalysis | null = null;
       const gosterge = p.gostergeTileId !== null ? tiles.find((t) => t.id === p.gostergeTileId) : undefined;
-      if (mode !== 'seri' && gosterge && tiles.length <= 2) {
+      if (mode === 'cift' && gosterge && tiles.length <= 2) {
         // Bildirilen gösterge tek başına ya da yanına konan herhangi bir taşla 1 çift sayılır.
+        // Sadece çiftle açan kullanabilir (çift açılışında ya da çiftle açtıktan sonra).
         m = { kind: 'pair', tiles, reps: tiles.map((t) => face(t, this.okey)), value: 1 };
       } else if (mode === 'seri') m = analyzeSet(tiles, this.okey);
       else if (mode === 'cift') m = analyzePair(tiles, this.okey);

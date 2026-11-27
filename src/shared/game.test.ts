@@ -423,3 +423,20 @@ describe('seriyle açan çift indirme', () => {
     expect(g.lay(0, [pair.map((x) => x.id)]).ok).toBe(true);
   });
 });
+
+describe('gösterge sadece çiftle açanda', () => {
+  it('seriyle açan göstergeyi çift olarak indiremez', () => {
+    const g = setup();
+    const { melds, hand } = openingHand();
+    const gost = t('R', 7);
+    const any = t('K', 4);
+    g.players[0].hand = [...hand, gost, any];
+    g.declareGosterge(0);
+    g.turn = 0;
+    g.phase = 'play';
+    expect(g.open(0, 'seri', melds.map((m) => m.map((x) => x.id))).ok).toBe(true);
+    g.openings.push({ seat: 2, kind: 'cift', value: 5 }); // çift indirme şartı sağlansın
+    expect(g.lay(0, [[gost.id, any.id]]).ok).toBe(false);
+    expect(g.lay(0, [[gost.id]]).ok).toBe(false);
+  });
+});

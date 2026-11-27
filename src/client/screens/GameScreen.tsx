@@ -238,7 +238,7 @@ export function GameScreen({ table }: { table: TableView }) {
       return setFlash('Çiftle açtığın için yeni seri per indiremezsin; taşları masadaki serilere işleyebilirsin.');
     if (opened === 'seri' && block.length <= 2 && !g.openings.some((o) => o.kind === 'cift'))
       return setFlash('Çift indirebilmek için önce masada birinin çiftle açmış olması gerekir.');
-    const valid = block.length === 2 ? analyzePair(block, okey) || isGostergePair(block) : analyzeSet(block, okey);
+    const valid = block.length === 2 ? analyzePair(block, okey) || (opened === 'cift' && isGostergePair(block)) : analyzeSet(block, okey);
     if (!valid) return setFlash('Seçili grup geçerli bir per ya da çift değil.');
     act({ type: 'lay', groups: [block.map((t) => t.id)] });
   };
