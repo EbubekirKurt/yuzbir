@@ -287,28 +287,10 @@ export function GameScreen({ table }: { table: TableView }) {
     </div>
   );
 
-  const ownersInOrder = [...new Set(g.table.map((m) => m.owner))];
-  const seriesByOwner = ownersInOrder
-    .map((o) => ({ owner: o, melds: g.table.filter((m) => m.owner === o && m.kind !== 'pair') }))
-    .filter((x) => x.melds.length);
-  const pairsByOwner = ownersInOrder
-    .map((o) => ({ owner: o, melds: g.table.filter((m) => m.owner === o && m.kind === 'pair') }))
-    .filter((x) => x.melds.length);
-  // Her oyuncunun perleri alt alta dizilir; alan dolunca yan sütuna geçer.
-  // Bir oyuncuya düşen satır sayısı, masada kaç oyuncunun bloğu olduğuna göre hesaplanır.
-  const ZONE_H = 424; // perlerin bulunduğu alanın yüksekliği
-  const rowsFor = (blocks: number) => {
-    if (blocks === 0) return 1;
-    const budget = (ZONE_H - blocks * 40 - (blocks - 1) * 14) / blocks;
-    return Math.max(1, Math.floor((budget + 8) / 58));
-  };
-  const seriesRows = rowsFor(seriesByOwner.length);
-  const pairRows = rowsFor(pairsByOwner.length);
-
-  const ownerLabel = (o: number) => {
-    const p = g.players[o];
-    return `${o === me ? 'Sen' : p.name}${p.opened ? ` · ${p.opened === 'seri' ? `${p.openValue} seri` : `${p.openValue} çift`}` : ''} · ${p.handCount} taş kaldı`;
-  };
+  // Bütün perler masaya açılış sırasıyla alt alta eklenir; alan dolunca sağdaki sütuna geçer.
+  const ZONE_ROWS = 7; // 424px yüksekliğe 50px'lik 7 sıra sığar
+  const seriesMelds = g.table.filter((m) => m.kind !== 'pair');
+  const pairMelds = g.table.filter((m) => m.kind === 'pair');
 
   const timeLeft = deadline ? Math.max(0, Math.ceil((deadline - now) / 1000)) : null;
   const timeFrac = deadline && g.deadlineIn ? Math.max(0, Math.min(1, (deadline - now) / (table.settings.turnSeconds * 1000))) : 0;
@@ -450,15 +432,10 @@ export function GameScreen({ table }: { table: TableView }) {
           <span>Çift {g.thresholds.cift}</span>
         </div>
 
-        <FitBox className="zone-series" innerClassName="zone-inner">
-          {seriesByOwner.map((x) => (
-            <div key={x.owner} className="owner-block">
-              <span className="owner-chip">{ownerLabel(x.owner)}</span>
-              <div className="meld-grid" style={{ gridTemplateRows: `repeat(${Math.min(seriesRows, x.melds.length)}, 50px)` }}>
-                {x.melds.map(renderMeld)}
-              </div>
-            </div>
-          ))}
+        <FitBox className="zone-series">
+          <div className="meld-grid" style={{ gridTemplateRows: `repeat(${Math.max(1, Math.min(ZONE_ROWS, seriesMelds.length))}, 50px)` }}>
+            {seriesMelds.map(renderMeld)}
+          </div>
         </FitBox>
 
         <div className="center-col">
@@ -484,15 +461,10 @@ export function GameScreen({ table }: { table: TableView }) {
           <div className="okey-chip">Okey: {faceName(okey)}</div>
         </div>
 
-        <FitBox className="zone-pairs" innerClassName="zone-inner">
-          {pairsByOwner.map((x) => (
-            <div key={x.owner} className="owner-block">
-              <span className="owner-chip">{ownerLabel(x.owner)}</span>
-              <div className="pair-grid" style={{ gridTemplateRows: `repeat(${Math.min(pairRows, x.melds.length)}, 50px)` }}>
-                {x.melds.map(renderMeld)}
-              </div>
-            </div>
-          ))}
+        <FitBox className="zone-pairs">
+          <div className="pair-grid" style={{ gridTemplateRows: `repeat(${Math.max(1, Math.min(ZONE_ROWS, pairMelds.length))}, 50px)` }}>
+            {pairMelds.map(renderMeld)}
+          </div>
         </FitBox>
 
         {[0, 1, 2, 3].map((r) => {
