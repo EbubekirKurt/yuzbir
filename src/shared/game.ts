@@ -358,10 +358,14 @@ export class Game {
     if (!p.opened) return fail('Önce elini açmalısın.');
     const totalTiles = groups.reduce((n, g) => n + g.length, 0);
     if (p.hand.length - totalTiles < 1) return fail('Atmak için elinde en az bir taş kalmalı.');
-    const analysis = this.analyzeGroups(seat, groups, 'any');
-    if (!analysis || analysis.melds.length === 0) return fail('Geçerli bir per ya da çift seçmelisin.');
+    // Çiftle açan yeni seri per indiremez; sadece çift indirir ve serilere işleme yapar.
+    if (p.opened === 'cift' && groups.some((g) => g.length > 2))
+      return fail('Çiftle açtığın için yeni seri per indiremezsin; sadece çift indirebilir ve masadaki serilere işleme yapabilirsin.');
+    const analysis = this.analyzeGroups(seat, groups, p.opened === 'cift' ? 'cift' : 'any');
+    if (!analysis || analysis.melds.length === 0)
+      return fail(p.opened === 'cift' ? 'Geçerli bir çift seçmelisin.' : 'Geçerli bir per ya da çift seçmelisin.');
     this.placeMelds(seat, analysis.melds);
-    this.addLog(`${this.name(seat)} masaya ${analysis.melds.length} per indirdi.`);
+    this.addLog(`${this.name(seat)} masaya ${analysis.melds.length} ${p.opened === 'cift' ? 'çift' : 'per'} indirdi.`);
     return ok();
   }
 

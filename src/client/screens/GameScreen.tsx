@@ -184,7 +184,10 @@ export function GameScreen({ table }: { table: TableView }) {
   const pairCount = pairBlocks.length + gostergeExtra;
   // Açtıktan sonra indirilebilecek gruplar: seri perler; çiftle açan için çiftler de.
   const layable = opened
-    ? blocks.filter((b) => (b.length >= 3 && analyzeSet(b, okey)) || (opened === 'cift' && b.length === 2 && (analyzePair(b, okey) || isGostergePair(b))))
+    ? opened === 'cift'
+      ? // Çiftle açan yeni seri per indiremez, sadece çift indirir.
+        blocks.filter((b) => b.length === 2 && (analyzePair(b, okey) || isGostergePair(b)))
+      : blocks.filter((b) => b.length >= 3 && analyzeSet(b, okey))
     : [];
   // Elindeki taşların ceza değeri (okey 101; çiftle açtıysan 2 katı).
   const handPoints = g.hand.reduce((s, t) => s + handValue(t, okey), 0) * (opened === 'cift' ? 2 : 1);
@@ -231,6 +234,8 @@ export function GameScreen({ table }: { table: TableView }) {
     }
     const block = blocks.find((b) => b.some((t) => t.id === selected));
     if (!block) return setFlash('İndirmek istediğin grubun bir taşını seç.');
+    if (opened === 'cift' && block.length > 2)
+      return setFlash('Çiftle açtığın için yeni seri per indiremezsin; taşları masadaki serilere işleyebilirsin.');
     const valid = block.length === 2 ? analyzePair(block, okey) || isGostergePair(block) : analyzeSet(block, okey);
     if (!valid) return setFlash('Seçili grup geçerli bir per ya da çift değil.');
     act({ type: 'lay', groups: [block.map((t) => t.id)] });

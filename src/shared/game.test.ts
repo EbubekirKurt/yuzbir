@@ -389,3 +389,22 @@ describe('masadaki tek gösterge', () => {
     expect(lone.tiles).toHaveLength(2);
   });
 });
+
+describe('çiftle açan', () => {
+  it('yeni seri per indiremez, çift indirebilir ve serilere işleme yapabilir', () => {
+    const g = setup();
+    const pairs = Array.from({ length: 5 }, (_, i) => [t('B', i + 2), t('B', i + 2)]);
+    const run = [t('Y', 3), t('Y', 4), t('Y', 5)];
+    const pair = [t('K', 9), t('K', 9)];
+    const k8 = t('K', 8);
+    g.players[0].hand = [...pairs.flat(), ...run, ...pair, k8, t('R', 1), t('R', 2)];
+    g.turn = 0;
+    g.phase = 'play';
+    expect(g.open(0, 'cift', pairs.map((p) => p.map((x) => x.id))).ok).toBe(true);
+    expect(g.lay(0, [run.map((x) => x.id)]).ok).toBe(false);
+    expect(g.lay(0, [pair.map((x) => x.id)]).ok).toBe(true);
+    // Masada başkasının siyah 9-10-11 serisi olsun: siyah 8 işlenebilir
+    g.table.push({ id: 500, owner: 1, kind: 'run', tiles: [t('K', 9), t('K', 10), t('K', 11)], reps: [9, 10, 11].map((n) => ({ color: 'K' as const, num: n })) });
+    expect(g.extend(0, k8.id, 500).ok).toBe(true);
+  });
+});

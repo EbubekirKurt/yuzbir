@@ -109,8 +109,8 @@ Masayı kuran kişi şunları seçer:
 ## 7. Açtıktan sonra
 
 - Oyuncu elini açtığı turda **işleme yapabilir.**
-- Sonraki turlarda masaya **yeni per indirebilir.**
-- Seriyle açan oyuncu çift de işleyebilir. Çiftle açan oyuncu seri perlere işleyebilir.
+- **Seriyle açan** oyuncu sonraki turlarda masaya yeni seri per ve çift indirebilir.
+- **Çiftle açan** oyuncu yeni **seri per indiremez**; sadece yeni çift indirebilir ve masadaki seri perlere **işleme** yapabilir.
 - **İşleme sınırı (herkes için):** Bir perin **her ucuna bir turda en fazla 2 taş** işlenebilir. Sonraki turda aynı uca yine 2 taş işlenebilir.
   - Örneğin masada sarı 6-7-8 varsa bir turda sola 4-5, sağa 9-10 işlenebilir.
 - **Okeyi değiştirme:** Elini açmış bir oyuncu, masadaki bir perde okeyin yerine geçtiği gerçek taşı koyup okeyi alabilir.
