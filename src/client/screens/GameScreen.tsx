@@ -385,7 +385,7 @@ export function GameScreen({ table }: { table: TableView }) {
         : `Açmadı · ${p.handCount} taş`;
     const style: React.CSSProperties =
       r === 2
-        ? { left: 710, top: 86, width: 260, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 }
+        ? { left: 665, top: 84, width: 350, padding: '9px 14px', display: 'flex', alignItems: 'center', gap: 12 }
         : { left: r === 3 ? 30 : 1452, top: 360, width: r === 3 ? 170 : 150, padding: '14px 10px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 };
     return (
       <div className={`opponent ${isTurn ? 'turn' : ''}`} style={style}>
@@ -393,7 +393,7 @@ export function GameScreen({ table }: { table: TableView }) {
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: r === 2 ? 'flex-start' : 'center', gap: 4, flex: r === 2 ? 1 : undefined, width: r === 2 ? undefined : '100%' }}>
           <span className="who">{p.name}{table.settings.mode === 'esli' && r === 2 ? ' (eşin)' : ''}</span>
           <span className={`st ${p.opened ? 'open' : ''}`}>{status}</span>
-          {p.opened && (
+          {p.opened && r !== 2 && (
             <span className="left-badge" aria-label={`Elinde ${p.handCount} taş kaldı`}>
               <b>{p.handCount}</b> taş kaldı
             </span>
@@ -402,6 +402,12 @@ export function GameScreen({ table }: { table: TableView }) {
             <div className="timebar" aria-hidden="true"><div style={{ width: `${timeFrac * 100}%` }} /></div>
           )}
         </div>
+        {p.opened && r === 2 && (
+          // Üstteki kartta etiket sağda durur, kart uzayıp masadaki şeride binmesin.
+          <span className="left-badge" style={{ flexShrink: 0, alignSelf: 'center' }} aria-label={`Elinde ${p.handCount} taş kaldı`}>
+            <b>{p.handCount}</b> taş kaldı
+          </span>
+        )}
       </div>
     );
   };
