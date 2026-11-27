@@ -13,6 +13,7 @@ export interface Seat {
 }
 
 const BOT_DELAY_MS = 1100;
+const FIRST_BOT_MOVE_MS = 6000;
 const DISCONNECTED_TURN_MS = 10_000;
 const NEXT_HAND_MS = 12_000;
 
@@ -188,7 +189,8 @@ export class Table {
     if (this.turnTimer) clearTimeout(this.turnTimer);
     const seat = this.seats[g.turn]!;
     let ms: number;
-    if (seat.isBot) ms = BOT_DELAY_MS;
+    // Botun eldeki ilk hamlesi gecikir: diğer oyuncuların göstergeyi bildirmeye vakti olsun.
+    if (seat.isBot) ms = g.discardCount === 0 ? FIRST_BOT_MOVE_MS : BOT_DELAY_MS;
     else if (!seat.connected) ms = Math.min(DISCONNECTED_TURN_MS, this.settings.turnSeconds * 1000);
     else ms = this.settings.turnSeconds * 1000;
     this.deadline = seat.isBot ? null : Date.now() + ms;

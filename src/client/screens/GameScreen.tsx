@@ -8,6 +8,7 @@ import { FitBox } from '../components/FitBox';
 import { Logo } from '../components/Stage';
 import { TileView } from '../components/TileView';
 import { sendAction, socket } from '../socket';
+import { isLoneGosterge } from '../../shared/game';
 import { ranking, ScoreModal } from './ScoreModal';
 
 const AVATAR_BG = ['#FFB23F', '#9FD3FF', '#FFB3C7', '#BFD7FF'];
@@ -255,6 +256,7 @@ export function GameScreen({ table }: { table: TableView }) {
   const canWorkTable = canPlay && !!opened && !!selectedTile;
   const plusFor = (m: TableMeld, side: 'start' | 'end') => {
     if (!canWorkTable || !selectedTile) return false;
+    if (isLoneGosterge(m)) return side === 'end' && m.owner === me;
     const ext = extendMeld(m, selectedTile, okey, side);
     if (!ext || ext.side !== side) return false;
     return (g.extendCount[`${m.id}:${side}`] ?? 0) < 2;
@@ -281,7 +283,7 @@ export function GameScreen({ table }: { table: TableView }) {
           />
         ),
       )}
-      {m.kind !== 'pair' && plusFor(m, 'end') && (
+      {(m.kind !== 'pair' || isLoneGosterge(m)) && plusFor(m, 'end') && (
         <button className="plus" aria-label="Sona işle" onClick={() => act({ type: 'extend', tileId: selected!, meldId: m.id, side: 'end' })}>+</button>
       )}
     </div>

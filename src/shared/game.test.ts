@@ -362,3 +362,30 @@ describe('gösterge çifti', () => {
     expect(g.players[0].hand.map((x) => x.id)).not.toContain(any.id);
   });
 });
+
+describe('masadaki tek gösterge', () => {
+  it('sahibi sonradan yanına istediği bir taşı koyabilir, başkası koyamaz; işlek sayılmaz', () => {
+    const g = setup();
+    const gost = t('R', 7);
+    const pairs = Array.from({ length: 4 }, (_, i) => [t('B', i + 2), t('B', i + 2)]);
+    const any = t('K', 12);
+    g.players[0].hand = [...pairs.flat(), gost, any, t('Y', 1)];
+    g.declareGosterge(0);
+    g.turn = 0;
+    g.phase = 'play';
+    expect(g.open(0, 'cift', [...pairs.map((p) => p.map((x) => x.id)), [gost.id]]).ok).toBe(true);
+    const lone = g.table.find((m) => m.tiles.length === 1)!;
+    // Herhangi bir taş işlek sayılmaz
+    expect(isIslek(t('Y', 5), g.table, OKEY)).toBe(false);
+    // Başka oyuncu koyamaz
+    g.players[1].opened = 'seri';
+    const other = t('Y', 3);
+    g.players[1].hand = [other, t('Y', 4)];
+    g.turn = 1;
+    expect(g.extend(1, other.id, lone.id).ok).toBe(false);
+    // Sahibi koyabilir
+    g.turn = 0;
+    expect(g.extend(0, any.id, lone.id).ok).toBe(true);
+    expect(lone.tiles).toHaveLength(2);
+  });
+});

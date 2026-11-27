@@ -41,6 +41,11 @@ const ok = (info?: string): Result => ({ ok: true, info });
 const fail = (error: string): Result => ({ ok: false, error });
 
 export const SEATS = 4;
+
+/** Tek başına masaya inmiş gösterge çifti (yanına henüz taş konmamış). */
+export function isLoneGosterge(m: TableMeld): boolean {
+  return m.kind === 'pair' && m.tiles.length === 1;
+}
 export const next = (s: number) => (s + 1) % SEATS;
 export const leftOf = (s: number) => (s + SEATS - 1) % SEATS;
 
@@ -369,6 +374,15 @@ export class Game {
     const tile = this.findInHand(seat, tileId);
     const meld = this.table.find((m) => m.id === meldId);
     if (!tile || !meld) return fail('Taş ya da per bulunamadı.');
+    if (isLoneGosterge(meld)) {
+      // Tek başına açılmış göstergenin yanına sahibi istediği bir taşı koyabilir.
+      if (meld.owner !== seat) return fail('Göstergenin yanına sadece sahibi taş koyabilir.');
+      meld.tiles.push(tile);
+      meld.reps.push(face(tile, this.okey));
+      this.removeFromHand(seat, [tileId]);
+      this.addLog(`${this.name(seat)} göstergenin yanına ${tileName(tile)} koydu.`);
+      return ok();
+    }
     const ext = extendMeld(meld, tile, this.okey, side);
     if (!ext) return fail('Bu taş bu pere işlenemez.');
     const key = `${meldId}:${ext.side}`;

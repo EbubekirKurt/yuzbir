@@ -83,6 +83,8 @@ Masayı kuran kişi şunları seçer:
 
 - Göstergenin aynısı elinde olan oyuncu, **ilk taş atılmadan önce** bunu bildirebilir. Bildirirse bu taş **1 çift** sayılır ve çiftle açarken kullanılabilir. Göstergeyi bildirmek puan kazandırmaz.
 - Gösterge çifti tek başına konabileceği gibi, oyuncu **yanına istediği herhangi bir taşı** da koyabilir; ikisi birlikte 1 çift sayılır ve birlikte masaya iner. Istakada gösterge ile o taşı yan yana, diğer gruplardan boşlukla ayrı dizmek yeterlidir.
+- Gösterge tek başına açıldıysa, sahibi sonraki turlarında masadaki göstergenin **yanına istediği bir taşı işleyebilir** (taşı seçip göstergenin yanındaki + işaretine basarak). Bu yer başka oyuncular için işlek sayılmaz.
+- Eli bot başlatıyorsa botun ilk hamlesi 6 saniye gecikir; böylece diğer oyuncuların göstergeyi bildirmeye vakti kalır.
 - Gösterge taşı sonradan (desteden ya da soldan) gelirse sadece normal bir taştır.
 
 ### 5.5 Hatalı açma
