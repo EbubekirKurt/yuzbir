@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Game } from '../shared/game';
 import type { GameAction, LobbyTable, Settings, TablePeek, TableView } from '../shared/types';
 import { saveGame } from './db';
+import { postGameResult } from './discord';
 
 export interface Seat {
   playerId: string | null; // bot ise null
@@ -31,6 +32,7 @@ export class Table {
   deadline: number | null = null;
   nextHandAt: number | null = null;
   emptySince: number | null = null;
+  startedAt: Date | null = null;
 
   constructor(
     name: string,
@@ -120,6 +122,7 @@ export class Table {
     const names = this.seats.map((s) => s!.name);
     const bots = this.seats.map((s) => s!.isBot);
     this.game = new Game(this.settings, names, bots, Math.floor(Math.random() * 4));
+    this.startedAt = new Date();
     this.game.startHand();
     this.turnKey = '';
     this.schedule();
@@ -208,6 +211,16 @@ export class Table {
   private async persistResult() {
     const g = this.game;
     if (!g) return;
+    const finishedAt = new Date();
+    void postGameResult({
+      tableName: this.name,
+      settings: this.settings,
+      players: this.seats.map((s) => ({ name: s?.name ?? '?', isBot: !!s?.isBot })),
+      history: g.history,
+      totals: g.totals(),
+      startedAt: this.startedAt,
+      finishedAt,
+    });
     await saveGame({
       tableId: this.id,
       tableName: this.name,
@@ -220,7 +233,7 @@ export class Table {
       })),
       history: g.history,
       totals: g.totals(),
-      finishedAt: new Date(),
+      finishedAt,
     });
   }
 

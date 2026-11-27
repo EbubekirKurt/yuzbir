@@ -263,10 +263,15 @@ Windows'ta testler `c:\` yerine büyük harfli `C:\` yolundan çalıştırılmal
 - `MONGODB_URI` hiç tanımlı değilse hesaplar geçici bellekte tutulur (sadece yerel deneme için; sunucu kapanınca silinir). Yerelde böyle başlatmak için: `MONGODB_URI= npm start`.
 - `MONGODB_URI` tanımlı ama bağlanılamıyorsa giriş ve kayıt "Veritabanına bağlanılamadı" hatası verir. Atlas kullanılıyorsa sunucunun IP adresi Atlas'ta **Network Access** listesine eklenmelidir.
 
+**Discord:** Masa bitince sonuçlar bir Discord kanalına kart (embed) olarak gönderilir: kazanan, sıralama, el el puan tablosu, öne çıkanlar (en çok bitiren, baraj, en çok ceza) ve masa ayarları.
+- Bot ile: `DISCORD_BOT_TOKEN` ve `DISCORD_CHANNEL_ID` doldurulur. Botun o kanalda *Kanalı Görüntüle*, *Mesaj Gönder* ve *Bağlantı Yerleştir* izinleri olmalıdır. `SITE_URL` verilirse mesaja "Yeni masa kur" butonu eklenir.
+- Webhook ile: Kanal ayarları → Entegrasyonlar → Webhook'tan alınan adres `DISCORD_WEBHOOK_URL` olarak girilir.
+- `npm run discord:test` örnek bir sonucu kanala gönderir (ayar yoksa mesajı ekrana yazar).
+
 ## 13. Canlıya alma
 
 Tek bir Node servisi yeterlidir:
 - Kurulum: `npm install && npm run build`
 - Başlatma: `npm start`
-- Ortam değişkenleri: `MONGODB_URI`, `MONGODB_DB` (varsayılan `yuzbir`), `PORT` (platform verir)
+- Ortam değişkenleri: `MONGODB_URI`, `MONGODB_DB` (varsayılan `yuzbir`), `PORT` (platform verir), isteğe bağlı `SITE_URL`, `DISCORD_BOT_TOKEN` + `DISCORD_CHANNEL_ID` ya da `DISCORD_WEBHOOK_URL`
 - WebSocket desteği olan bir platform gerekir (ör. Render, Railway, Fly.io).
