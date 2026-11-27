@@ -213,6 +213,10 @@ button.tile { cursor: pointer; }
 .tile.selected { transform: translateY(-14px); box-shadow: 0 5px 0 var(--tile-edge), 0 0 0 4px var(--yellow); }
 .tile.white { background: #fff; box-shadow: 0 5px 0 var(--tile-edge), 0 0 0 3px #fff, 0 0 18px 6px rgba(255, 210, 63, .9); }
 .tile.white .okey-label { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 12px; letter-spacing: .04em; }
+.tile.md.white .okey-label { font-size: 10px; }
+.tile.sm.white { box-shadow: 0 3px 0 var(--tile-edge), 0 0 0 2px #fff, 0 0 10px 3px rgba(255, 210, 63, .85); }
+.tile.sm.white .okey-label { font-size: 8px; letter-spacing: 0; }
+.tile.sm.white.target { box-shadow: 0 3px 0 var(--tile-edge), 0 0 0 4px var(--yellow); }
 .tile.target { box-shadow: 0 3px 0 var(--tile-edge), 0 0 0 4px var(--yellow); cursor: pointer; }
 .tile.pending { box-shadow: 0 5px 0 var(--tile-edge), 0 0 0 4px #7fd1ae; }
 .tile.back { background: #f08a3a; }

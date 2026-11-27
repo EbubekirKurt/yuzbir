@@ -208,6 +208,7 @@ Tam tablo:
 - **Tema:** Ekranın üst ortasındaki düğmeyle açık (gündüz) ve koyu (gece) tema arasında geçilir. Seçim tarayıcıda saklanır; ilk açılışta cihazın tercihi kullanılır. Taşların zemini ve rakam renkleri iki temada da aynıdır.
 - **Taş animasyonları:** Desteden çekilen taş desteden çeken oyuncuya uçar (kendi çektiğin taş yüzü açık olarak ıstakadaki yerine gider, rakibinki kapalı gider). Atılan taş oyuncudan atma yerine, soldan alınan taş da alan oyuncuya uçar.
 - **Süre dolarsa:** Oyun oyuncu adına desteden taş çeker ve **işlek olmayan en düşük taşı** atar.
+- **Masadaki okey:** Masaya açılmış perlerdeki ve atılan taşlar arasındaki okeyler her zaman beyaz, üzerinde "OKEY" yazılı görünür.
 - **Okeyi işaretleme:** Istakadaki okey taşı normal taş gibi görünür. Oyuncu okeye **çift tıklarsa** taş beyaza döner ve üzerinde "OKEY" yazar. Tekrar çift tıklarsa eski haline döner. Diğer taşlarda çift tıklamanın etkisi yoktur.
 - **Botlar** (sadece tekli mod):
   - Tek bir zorluk seviyesi vardır.

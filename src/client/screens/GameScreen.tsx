@@ -268,9 +268,16 @@ export function GameScreen({ table }: { table: TableView }) {
       )}
       {m.tiles.map((t, i) =>
         swapTarget(m, i) ? (
-          <TileView key={t.id} tile={t} size="sm" target label="Okeyi al" onClick={() => act({ type: 'swapOkey', tileId: selected!, meldId: m.id, pos: i })} />
+          <TileView key={t.id} tile={t} okey={okey} white size="sm" target label="Okeyi al" onClick={() => act({ type: 'swapOkey', tileId: selected!, meldId: m.id, pos: i })} />
         ) : (
-          <TileView key={t.id} tile={t} size="sm" />
+          <TileView
+            key={t.id}
+            tile={t}
+            okey={okey}
+            size="sm"
+            white={isJoker(t, okey)}
+            label={isJoker(t, okey) ? `okey, ${faceName(m.reps[i])} yerine` : undefined}
+          />
         ),
       )}
       {m.kind !== 'pair' && plusFor(m, 'end') && (
@@ -490,6 +497,8 @@ export function GameScreen({ table }: { table: TableView }) {
                   {pile.top ? (
                     <TileView
                       tile={pile.top}
+                      okey={okey}
+                      white={isJoker(pile.top, okey)}
                       size="md"
                       rotate={[5, -7, 8, -4][r]}
                       target={canTake}
@@ -700,7 +709,7 @@ export function GameScreen({ table }: { table: TableView }) {
             ['--ty' as string]: `${f.to.y - 33}px`,
           }}
         >
-          {f.tile ? <TileView tile={f.tile} size="md" /> : <div className="tile md back" />}
+          {f.tile ? <TileView tile={f.tile} okey={okey} size="md" white={isJoker(f.tile, okey) && (PILE_XY.includes(f.to) || PILE_XY.includes(f.from))} /> : <div className="tile md back" />}
         </div>
       ))}
 
