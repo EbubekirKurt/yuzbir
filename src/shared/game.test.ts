@@ -408,3 +408,18 @@ describe('çiftle açan', () => {
     expect(g.extend(0, k8.id, 500).ok).toBe(true);
   });
 });
+
+describe('seriyle açan çift indirme', () => {
+  it('masada çiftle açan yoksa çift indiremez, varsa indirebilir', () => {
+    const g = setup();
+    const { melds, hand } = openingHand();
+    const pair = [t('Y', 6), t('Y', 6)];
+    g.players[0].hand = [...hand, ...pair];
+    g.turn = 0;
+    g.phase = 'play';
+    expect(g.open(0, 'seri', melds.map((m) => m.map((x) => x.id))).ok).toBe(true);
+    expect(g.lay(0, [pair.map((x) => x.id)]).ok).toBe(false);
+    g.openings.push({ seat: 2, kind: 'cift', value: 5 });
+    expect(g.lay(0, [pair.map((x) => x.id)]).ok).toBe(true);
+  });
+});

@@ -361,6 +361,9 @@ export class Game {
     // Çiftle açan yeni seri per indiremez; sadece çift indirir ve serilere işleme yapar.
     if (p.opened === 'cift' && groups.some((g) => g.length > 2))
       return fail('Çiftle açtığın için yeni seri per indiremezsin; sadece çift indirebilir ve masadaki serilere işleme yapabilirsin.');
+    // Seriyle açan, ancak masada daha önce çiftle açan biri varsa çift indirebilir.
+    if (p.opened === 'seri' && groups.some((g) => g.length <= 2) && !this.openings.some((o) => o.kind === 'cift'))
+      return fail('Çift indirebilmek için önce masada birinin çiftle açmış olması gerekir.');
     const analysis = this.analyzeGroups(seat, groups, p.opened === 'cift' ? 'cift' : 'any');
     if (!analysis || analysis.melds.length === 0)
       return fail(p.opened === 'cift' ? 'Geçerli bir çift seçmelisin.' : 'Geçerli bir per ya da çift seçmelisin.');
