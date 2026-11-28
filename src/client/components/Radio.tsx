@@ -95,7 +95,9 @@ export function Radio() {
   const [volume, setVolume] = useState(saved.current.volume ?? 0.6);
   const [ytActive, setYtActive] = useState(false);
   const [songTitle, setSongTitle] = useState<string | null>(null);
+  const [ytBlocked, setYtBlocked] = useState(false);
   const failCount = useRef(0);
+  const ytErrors = useRef(0);
   const volumeRef = useRef(volume);
   volumeRef.current = volume;
 
@@ -159,6 +161,7 @@ export function Radio() {
     yt.current?.destroy();
     yt.current = null;
     setYtActive(false);
+    setYtBlocked(false);
     setSongTitle(null);
   };
 
@@ -168,6 +171,8 @@ export function Radio() {
     setError(null);
     setBuffering(true);
     setYtActive(true);
+    setYtBlocked(false);
+    ytErrors.current = 0;
     try {
       const YT = await loadYouTubeApi();
       yt.current?.destroy();
@@ -180,13 +185,20 @@ export function Radio() {
       yt.current = new YT.Player(el, {
         width: '100%',
         height: '100%',
-        playerVars: { listType: 'playlist', list: st.playlistId, autoplay: 1, playsinline: 1, rel: 0, modestbranding: 1 },
+        playerVars: {
+          listType: 'playlist',
+          list: st.playlistId,
+          autoplay: 1,
+          playsinline: 1,
+          rel: 0,
+          origin: window.location.origin,
+          widget_referrer: window.location.href,
+        },
         events: {
           onReady: (e: { target: YTPlayer }) => {
             e.target.setVolume(Math.round(volumeRef.current * 100));
-            e.target.setShuffle(true);
+            e.target.setShuffle(true); // sonraki şarkılar karışık sırayla
             e.target.setLoop(true);
-            e.target.nextVideo(); // karıştırılmış listeden başla
             e.target.playVideo();
           },
           onStateChange: (e: { data: number; target: YTPlayer }) => {
@@ -194,14 +206,26 @@ export function Radio() {
             if (e.data === 1) {
               setPlaying(true);
               setBuffering(false);
+              setError(null);
+              ytErrors.current = 0;
               setSongTitle(e.target.getVideoData().title ?? null);
             } else if (e.data === 2 || e.data === 0) setPlaying(false);
             else if (e.data === 3) setBuffering(true);
           },
-          onError: (e: { target: YTPlayer }) => {
-            // Gömülü oynatmaya kapalı ya da kaldırılmış video: sonrakine geç.
-            setError('Bu şarkı oynatılamadı, sonrakine geçiliyor.');
-            e.target.nextVideo();
+          onError: (e: { data: number; target: YTPlayer }) => {
+            ytErrors.current++;
+            // 100: video yok, 101/150: sahibi gömülü oynatmayı kapatmış -> birkaç kez sonrakine geç.
+            // Diğer durumlar (ör. YouTube'un "bot olmadığınızı doğrulayın" engeli) -> döngüye girme, dur.
+            if ([100, 101, 150].includes(e.data) && ytErrors.current <= 2) {
+              setError('Bu klip burada oynatılamıyor, sonrakine geçiliyor…');
+              setTimeout(() => yt.current?.nextVideo(), 1500);
+              return;
+            }
+            e.target.pauseVideo();
+            setPlaying(false);
+            setBuffering(false);
+            setYtBlocked(true);
+            setError('YouTube oynatmayı engelledi.');
           },
         },
       });
@@ -299,6 +323,17 @@ export function Radio() {
           </button>
         </div>
         <div ref={ytHost} className="yt-mini-video" />
+        {ytBlocked && station?.kind === 'youtube' && (
+          <div className="yt-mini-help" role="alert">
+            <span>
+              YouTube "bot olmadığınızı doğrulayın" diyorsa bu tarayıcıda YouTube'a giriş yapıp tekrar dene. VPN ya da reklam engelleyici de buna yol açabilir.
+            </span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button type="button" className="btn small primary" onClick={() => playYouTube(station)}>Tekrar dene</button>
+              <a className="btn small" href={station.url} target="_blank" rel="noopener noreferrer">YouTube'da aç</a>
+            </div>
+          </div>
+        )}
       </div>
 
       {open && (
