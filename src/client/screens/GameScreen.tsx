@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
-import { analyzePair, analyzeSet, extendMeld } from '../../shared/melds';
+import { analyzePair, analyzeSet, extendMeld, isIslek } from '../../shared/melds';
 import { face, faceName, handValue, isJoker, sameFace, tileName } from '../../shared/tiles';
 import type { Face, GameAction, GameView, TableMeld, TableView, Tile } from '../../shared/types';
 import { arrangeCift, arrangeSeri, layoutSlots, ROW, slotBlocks, sortTiles } from '../arrange';
@@ -243,10 +243,25 @@ export function GameScreen({ table }: { table: TableView }) {
     act({ type: 'lay', groups: [block.map((t) => t.id)] });
   };
 
+  /** İşlek uyarısı açıksa işlek taş ya da okey atmadan önce onay ister. */
+  const confirmDiscard = (tileId: number) => {
+    const t = tilesById.get(tileId);
+    if (!t || table.settings.islekUyari === false || g.hand.length <= 1) return true; // son taşla bitirme cezasız
+    if (isJoker(t, okey)) return window.confirm('Bu taş okey. Okey atarsan 101 ceza yazılır. Yine de atılsın mı?');
+    if (isIslek(t, g.table, okey))
+      return window.confirm(`${tileName(t)} işlek: masadaki bir pere işlenebilir. Atarsan 101 ceza yazılır. Yine de atılsın mı?`);
+    return true;
+  };
+
+  const discardTile = (tileId: number) => {
+    if (!confirmDiscard(tileId)) return;
+    act({ type: 'discard', tileId });
+    setSelected(null);
+  };
+
   const discardSelected = () => {
     if (selected === null) return;
-    act({ type: 'discard', tileId: selected });
-    setSelected(null);
+    discardTile(selected);
   };
 
   const arrange = (kind: 'seri' | 'cift') => {
@@ -409,10 +424,7 @@ export function GameScreen({ table }: { table: TableView }) {
     if (cancelled) return;
     const target = dropTargetAt(e.clientX, e.clientY);
     if (target && 'slot' in target) moveTile(d.id, target.slot!);
-    else if (target && 'discard' in target && canPlay) {
-      act({ type: 'discard', tileId: d.id });
-      setSelected(null);
-    }
+    else if (target && 'discard' in target && canPlay) discardTile(d.id);
   };
   const dragTile = drag ? tilesById.get(drag.id) : undefined;
 

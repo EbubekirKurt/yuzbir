@@ -34,6 +34,8 @@ export interface Settings {
   esKatlama: boolean; // sadece eşli + katlamalı modda anlamlı
   hands: number; // 5 / 7 / 9 / 11
   turnSeconds: number; // 30 / 45 / 60
+  /** İşlek taş ya da okey atmadan önce onay sorulsun mu (eski masalarda tanımsız = açık) */
+  islekUyari?: boolean;
 }
 
 export interface Penalty {

@@ -373,5 +373,6 @@ export function sanitizeSettings(raw: Partial<Settings> | undefined): Settings {
     esKatlama: mode === 'esli' && !!raw?.esKatlama,
     hands: pick(raw?.hands, [5, 7, 9, 11], 9),
     turnSeconds: pick(raw?.turnSeconds, [30, 45, 60], 45),
+    islekUyari: raw?.islekUyari !== false,
   };
 }

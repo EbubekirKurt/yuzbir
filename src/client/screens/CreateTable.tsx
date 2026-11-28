@@ -40,7 +40,7 @@ export function rulesSummary(s: Settings): string[] {
           : 'Sadece rakip takımın açılışı sınırını yükseltir'
         : 'Eşler karşılıklı oturur, eşli modda bot eklenemez'
       : 'Boş koltuklara bot eklenebilir, botlar el açmaz',
-    `${s.hands} el · Hamle süresi ${s.turnSeconds} sn`,
+    `${s.hands} el · Hamle süresi ${s.turnSeconds} sn · İşlek uyarısı ${s.islekUyari === false ? 'kapalı' : 'açık'}`,
   ];
 }
 
@@ -52,6 +52,7 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
     esKatlama: false,
     hands: 9,
     turnSeconds: 45,
+    islekUyari: true,
   });
   const set = (patch: Partial<Settings>) => setS((p) => ({ ...p, ...patch }));
   const esli = s.mode === 'esli';
@@ -129,6 +130,18 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
                 <span className="label">Hamle süresi</span>
                 <Pills label="Hamle süresi" value={s.turnSeconds} options={[30, 45, 60].map((v) => ({ v, l: `${v} sn` }))} onChange={(turnSeconds) => set({ turnSeconds })} />
               </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+                <span className="label">İşlek uyarısı</span>
+                <span className="hint">İşlek taş ya da okey atmadan önce "101 ceza yazılır" diye sorar</span>
+              </div>
+              <Pills
+                label="İşlek uyarısı"
+                value={s.islekUyari === false ? 'h' : 'e'}
+                options={[{ v: 'e', l: 'Açık' }, { v: 'h', l: 'Kapalı' }]}
+                onChange={(v) => set({ islekUyari: v === 'e' })}
+              />
             </div>
           </div>
 
