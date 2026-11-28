@@ -498,6 +498,11 @@ export function GameScreen({ table, mobile = false }: { table: TableView; mobile
     const el = document.querySelector('.stage') as HTMLElement | null;
     if (!el) return { x: clientX, y: clientY };
     const r = el.getBoundingClientRect();
+    if (el.dataset.rotated) {
+      // Sahne 90° döndürülmüş: ekran yüksekliği sahnenin genişliği
+      const s = r.height / C.stageW || 1;
+      return { x: (clientY - r.top) / s, y: (r.right - clientX) / s };
+    }
     const scale = r.width / C.stageW || 1;
     return { x: (clientX - r.left) / scale, y: (clientY - r.top) / scale };
   };

@@ -533,11 +533,6 @@ button.tile { cursor: pointer; }
    ===================================================================== */
 html { touch-action: manipulation; } /* çift dokunmada sayfa yakınlaşmasın */
 
-.rotate-hint {
-  position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-  background: var(--cream); color: var(--text); text-align: center; padding: 24px; font-size: 16px;
-}
-.rotate-hint b { font-family: 'Baloo 2', sans-serif; font-size: 26px; }
 
 /* Global düğmeler (ses, tema, radyo) telefonda sağ üst köşede küçük */
 .mobile .sound-toggle, .mobile .theme-toggle, .mobile .radio-toggle {
@@ -633,3 +628,14 @@ html { touch-action: manipulation; } /* çift dokunmada sayfa yakınlaşmasın *
 .m-game .modal .grid-row { font-size: 14px !important; padding: 6px 10px; min-height: 0 !important; }
 .m-game .bubble { font-size: 14px; max-width: 240px; }
 .m-game .bubble.emoji { font-size: 32px; }
+
+/* Dik tutulan telefonda oyun 90° döndürülür: köşe düğmeleri ve radyo paneli de aynı yöne */
+.rotated .sound-toggle, .rotated .theme-toggle, .rotated .radio-toggle { top: auto; right: 6px; transform: rotate(90deg); }
+.rotated .radio-toggle { bottom: 6px; }
+.rotated .theme-toggle { bottom: 46px; }
+.rotated .sound-toggle { bottom: 86px; }
+.rotated .radio-panel {
+  left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(90deg);
+  width: min(400px, calc(100vh - 24px)); max-height: calc(100vw - 24px);
+}
+.rotated .invites { top: auto; bottom: 8px; left: 8px; right: auto; transform-origin: bottom left; transform: translateY(-100%) rotate(90deg); }

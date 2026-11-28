@@ -22,25 +22,37 @@ export function useIsMobile() {
 export function Stage({ children, mode = 'fixed' }: { children: ReactNode; mode?: 'fixed' | 'game' | 'page' }) {
   const W = mode === 'game' ? 1100 : 1920;
   const H = mode === 'game' ? 500 : 1080;
-  const [box, setBox] = useState({ scale: 1, x: 0, y: 0, portrait: false });
+  const [box, setBox] = useState({ scale: 1, x: 0, y: 0, rotated: false });
   useEffect(() => {
     const fit = () => {
-      const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
-      setBox({
-        scale,
-        x: (window.innerWidth - W * scale) / 2,
-        y: (window.innerHeight - H * scale) / 2,
-        portrait: window.innerHeight > window.innerWidth,
-      });
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // Telefon dik tutuluyorsa (ya da ekran döndürme kilitliyse) yatay oyun 90° döndürülerek sığdırılır.
+      if (mode === 'game' && vh > vw) {
+        const scale = Math.min(vh / W, vw / H);
+        setBox({ scale, x: (vw - H * scale) / 2 + H * scale, y: (vh - W * scale) / 2, rotated: true });
+        return;
+      }
+      const scale = Math.min(vw / W, vh / H);
+      setBox({ scale, x: (vw - W * scale) / 2, y: (vh - H * scale) / 2, rotated: false });
     };
     fit();
+    // Bazı telefonlarda döndürme sonrası boyutlar gecikmeli güncellenir: kısa bir süre sonra tekrar ölç.
+    const later = () => setTimeout(fit, 300);
     window.addEventListener('resize', fit);
-    window.addEventListener('orientationchange', fit);
+    window.addEventListener('orientationchange', later);
+    window.visualViewport?.addEventListener('resize', fit);
     return () => {
       window.removeEventListener('resize', fit);
-      window.removeEventListener('orientationchange', fit);
+      window.removeEventListener('orientationchange', later);
+      window.visualViewport?.removeEventListener('resize', fit);
     };
-  }, [W, H]);
+  }, [W, H, mode]);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('rotated', box.rotated);
+    return () => document.documentElement.classList.remove('rotated');
+  }, [box.rotated]);
 
   if (mode === 'page') {
     return (
@@ -53,20 +65,17 @@ export function Stage({ children, mode = 'fixed' }: { children: ReactNode; mode?
   return (
     <div className="stage-wrap">
       <Scene />
-      <div className="stage" style={{ width: W, height: H, transform: `translate(${box.x}px, ${box.y}px) scale(${box.scale})` }}>
+      <div
+        className="stage"
+        data-rotated={box.rotated ? '1' : undefined}
+        style={{
+          width: W,
+          height: H,
+          transform: `translate(${box.x}px, ${box.y}px)${box.rotated ? ' rotate(90deg)' : ''} scale(${box.scale})`,
+        }}
+      >
         {children}
       </div>
-      {mode === 'game' && box.portrait && (
-        <div className="rotate-hint" role="alert">
-          <svg aria-hidden="true" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="7" y="2" width="10" height="20" rx="2" />
-            <path d="M3 14a9 9 0 0 0 7 7" />
-            <path d="M3 18v-4h4" />
-          </svg>
-          <b>Telefonunu yan çevir</b>
-          <span>Oyun yatay ekranda oynanır.</span>
-        </div>
-      )}
     </div>
   );
 }
