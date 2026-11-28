@@ -14,31 +14,66 @@ import { ranking, ScoreModal } from './ScoreModal';
 
 const AVATAR_BG = ['#FFB23F', '#9FD3FF', '#FFB3C7', '#BFD7FF'];
 
-// Animasyon için sahnedeki (1920×1080) yaklaşık merkezler.
-const DECK_XY = { x: 957, y: 307 };
-const SEAT_XY = [
-  { x: 841, y: 930 }, // ben (ıstaka)
-  { x: 1527, y: 440 }, // sağ
-  { x: 840, y: 121 }, // üst
-  { x: 115, y: 440 }, // sol
-];
-const BUBBLE_POS: React.CSSProperties[] = [
-  { left: 40, top: 700 }, // ben: kartımın üstü
-  { left: 1440, top: 300 }, // sağ
-  { left: 760, top: 166 }, // üst: kartın altı
-  { left: 30, top: 300 }, // sol
-];
-const PILE_XY = [
-  { x: 1370, y: 676 }, // benim attığım (sağ alt)
-  { x: 1370, y: 203 }, // sağdakinin (sağ üst)
-  { x: 297, y: 203 }, // üsttekinin (sol üst)
-  { x: 297, y: 676 }, // soldakinin (sol alt)
-];
-function slotXY(i: number) {
-  const row = i < ROW ? 0 : 1;
-  const col = i % ROW;
-  return { x: 330 + 4 + 14 + col * 66 + 31, y: 808 + 4 + 10 + row * 108 + 46 };
+type XY = { x: number; y: number };
+interface Coords {
+  stageW: number;
+  deck: XY;
+  seat: XY[]; // 0 ben, 1 sağ, 2 üst, 3 sol
+  pile: XY[];
+  slot: (i: number) => XY;
+  bubble: React.CSSProperties[];
 }
+
+// Animasyon ve baloncuklar için sahnedeki yaklaşık merkezler.
+const DESKTOP: Coords = {
+  stageW: 1920,
+  deck: { x: 957, y: 307 },
+  seat: [
+    { x: 841, y: 930 },
+    { x: 1527, y: 440 },
+    { x: 840, y: 121 },
+    { x: 115, y: 440 },
+  ],
+  pile: [
+    { x: 1370, y: 676 },
+    { x: 1370, y: 203 },
+    { x: 297, y: 203 },
+    { x: 297, y: 676 },
+  ],
+  slot: (i) => ({ x: 330 + 4 + 14 + (i % ROW) * 66 + 31, y: 808 + 4 + 10 + (i < ROW ? 0 : 1) * 108 + 46 }),
+  bubble: [
+    { left: 40, top: 700 },
+    { left: 1440, top: 300 },
+    { left: 760, top: 166 },
+    { left: 30, top: 300 },
+  ],
+};
+
+// Telefon (yatay): 1100×500 sahne
+export const MOBILE_STAGE = { w: 1100, h: 500 };
+const MOBILE: Coords = {
+  stageW: MOBILE_STAGE.w,
+  deck: { x: 566, y: 150 },
+  seat: [
+    { x: 480, y: 400 },
+    { x: 940, y: 72 },
+    { x: 550, y: 72 },
+    { x: 158, y: 72 },
+  ],
+  pile: [
+    { x: 1062, y: 262 },
+    { x: 1062, y: 136 },
+    { x: 38, y: 136 },
+    { x: 38, y: 262 },
+  ],
+  slot: (i) => ({ x: 19 + (i % ROW) * 62 + 29, y: 309 + (i < ROW ? 0 : 1) * 91 + 39 }),
+  bubble: [
+    { left: 20, top: 250 },
+    { left: 820, top: 96 },
+    { left: 430, top: 96 },
+    { left: 20, top: 96 },
+  ],
+};
 
 interface Flight {
   id: number;
@@ -52,7 +87,10 @@ function initialSlots(hand: Tile[], okey: Face) {
   return layoutSlots({ blocks: [], rest: sortTiles(hand, okey).map((t) => t.id) });
 }
 
-export function GameScreen({ table }: { table: TableView }) {
+export function GameScreen({ table, mobile = false }: { table: TableView; mobile?: boolean }) {
+  const C = mobile ? MOBILE : DESKTOP;
+  const coordsRef = useRef(C);
+  coordsRef.current = C;
   const g = table.game!;
   const me = g.you;
   const okey = g.okey;
@@ -65,6 +103,8 @@ export function GameScreen({ table }: { table: TableView }) {
   const [drag, setDrag] = useState<{ id: number; x: number; y: number } | null>(null);
   const dragRef = useRef<{ id: number; startX: number; startY: number; active: boolean } | null>(null);
   const suppressClick = useRef(false);
+  const lastTap = useRef<{ id: number; at: number } | null>(null);
+  const [sheet, setSheet] = useState<null | 'log' | 'chat' | 'score'>(null);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [scoreTab, setScoreTab] = useState('genel');
   const [flash, setFlash] = useState<string | null>(null);
@@ -188,20 +228,20 @@ export function GameScreen({ table }: { table: TableView }) {
         // Yeni taş, ıstakadaki en sağdaki boş yere konur.
         const ids = new Set(g.hand.map((t) => t.id));
         const target = slotsRef.current.map((id) => (id !== null && ids.has(id) ? id : null)).lastIndexOf(null);
-        add.push({ id: ++flightId, tile: fresh, from: DECK_XY, to: target >= 0 ? slotXY(target) : SEAT_XY[0] });
+        add.push({ id: ++flightId, tile: fresh, from: coordsRef.current.deck, to: target >= 0 ? coordsRef.current.slot(target) : coordsRef.current.seat[0] });
         if (fresh) setArriving(fresh.id);
       } else {
-        add.push({ id: ++flightId, tile: null, from: DECK_XY, to: SEAT_XY[rel(drawer)] });
+        add.push({ id: ++flightId, tile: null, from: coordsRef.current.deck, to: coordsRef.current.seat[rel(drawer)] });
       }
     }
     for (let s = 0; s < 4; s++) {
       const before = prev.piles[s].count;
       const after = g.piles[s].count;
       if (after === before + 1 && g.piles[s].top && prev.pendingLeftId !== g.piles[s].top!.id) {
-        add.push({ id: ++flightId, tile: g.piles[s].top, from: SEAT_XY[rel(s)], to: PILE_XY[rel(s)] });
+        add.push({ id: ++flightId, tile: g.piles[s].top, from: coordsRef.current.seat[rel(s)], to: coordsRef.current.pile[rel(s)] });
       } else if (after === before - 1 && prev.piles[s].top) {
         const taker = (s + 1) % 4;
-        add.push({ id: ++flightId, tile: prev.piles[s].top, from: PILE_XY[rel(s)], to: SEAT_XY[rel(taker)] });
+        add.push({ id: ++flightId, tile: prev.piles[s].top, from: coordsRef.current.pile[rel(s)], to: coordsRef.current.seat[rel(taker)] });
       }
     }
     if (!add.length) return;
@@ -336,7 +376,7 @@ export function GameScreen({ table }: { table: TableView }) {
   };
 
   const arrange = (kind: 'seri' | 'cift') => {
-    const arr = kind === 'seri' ? arrangeSeri(g.hand, okey) : arrangeCift(g.hand, okey);
+    const arr = kind === 'seri' ? arrangeSeri(g.hand, okey) : arrangeCift(g.hand, okey, g.gostergeDeclared ? g.gostergeTileId : null);
     setSlots(layoutSlots(arr));
   };
 
@@ -426,7 +466,7 @@ export function GameScreen({ table }: { table: TableView }) {
     : 0;
 
   // Bütün perler masaya açılış sırasıyla alt alta eklenir; alan dolunca sağdaki sütuna geçer.
-  const ZONE_ROWS = 7; // 424px yüksekliğe 50px'lik 7 sıra sığar
+  const ZONE_ROWS = mobile ? 3 : 7; // masadaki alana 50px'lik kaç sıra sığar
   const seriesMelds = g.table.filter((m) => m.kind !== 'pair');
   const pairMelds = g.table.filter((m) => m.kind === 'pair');
 
@@ -445,11 +485,12 @@ export function GameScreen({ table }: { table: TableView }) {
   else if (opened && layable.length) hint = `Istakanda ${layable.length} yeni per var · "Perleri indir" ile masaya koy`;
   else hint = opened ? 'İşle, per indir ya da taşını at' : 'Aç ya da bir taş seçip at';
 
+  const pad = mobile ? 6 : 14;
   const pileSpot: Record<number, React.CSSProperties> = {
-    0: { right: 14, bottom: 12 },
-    1: { right: 14, top: 12 },
-    2: { left: 14, top: 12 },
-    3: { left: 14, bottom: 12 },
+    0: { right: pad, bottom: mobile ? 6 : 12 },
+    1: { right: pad, top: mobile ? 6 : 12 },
+    2: { left: pad, top: mobile ? 6 : 12 },
+    3: { left: pad, bottom: mobile ? 6 : 12 },
   };
 
   // ---------- ıstakada sürükleme (fare, dokunmatik ve kalemle aynı çalışır) ----------
@@ -457,7 +498,7 @@ export function GameScreen({ table }: { table: TableView }) {
     const el = document.querySelector('.stage') as HTMLElement | null;
     if (!el) return { x: clientX, y: clientY };
     const r = el.getBoundingClientRect();
-    const scale = r.width / 1920 || 1;
+    const scale = r.width / C.stageW || 1;
     return { x: (clientX - r.left) / scale, y: (clientY - r.top) / scale };
   };
   const dropTargetAt = (clientX: number, clientY: number) => {
@@ -543,6 +584,400 @@ export function GameScreen({ table }: { table: TableView }) {
   const lastHand = g.history[g.history.length - 1];
   const winnerSeat = totalsRank.indexOf(1);
 
+  const feltEl = (
+      <div className="felt">
+        <div className="banner">
+          <span className="k">Açma sınırı</span>
+          <span>Seri {g.thresholds.seri}</span>
+          <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chip)' }} />
+          <span>Çift {g.thresholds.cift}</span>
+        </div>
+
+        <FitBox className="zone-series">
+          <div className="meld-grid" style={{ gridTemplateRows: `repeat(${Math.max(1, Math.min(ZONE_ROWS, seriesMelds.length))}, 50px)` }}>
+            {seriesMelds.map(renderMeld)}
+          </div>
+        </FitBox>
+
+        <div className="center-col">
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <div className="deck">
+              <div className="layer" style={{ left: 8, top: 0 }} />
+              <div className="layer" style={{ left: 4, top: 6 }} />
+              <button
+                className={canDraw ? 'can' : ''}
+                aria-label={`Desteden taş çek, ${g.deckCount} taş kaldı`}
+                disabled={!canDraw || g.deckCount === 0}
+                onClick={() => act({ type: 'draw' })}
+              >
+                {g.deckCount}
+              </button>
+            </div>
+            <span className="felt-label">Deste</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <TileView tile={g.gosterge} size={mobile ? 'sm' : 'md'} rotate={-6} label={`Gösterge: ${tileName(g.gosterge)}`} />
+            <span className="felt-label">Gösterge</span>
+          </div>
+          <div className="okey-chip">Okey: {faceName(okey)}</div>
+        </div>
+
+        <FitBox className="zone-pairs">
+          <div className="pair-grid" style={{ gridTemplateRows: `repeat(${Math.max(1, Math.min(ZONE_ROWS, pairMelds.length))}, 50px)` }}>
+            {pairMelds.map(renderMeld)}
+          </div>
+        </FitBox>
+
+        {[0, 1, 2, 3].map((r) => {
+          const seat = seatAt(r);
+          const pile = g.piles[seat];
+          const isLeft = r === 3;
+          const canTake = isLeft && canDraw && !!leftTop;
+          const isMine = r === 0;
+          return (
+            <div
+              key={r}
+              className="pile"
+              style={{ ...pileSpot[r], flexDirection: isLeft ? 'row' : 'column', alignItems: isLeft ? 'flex-end' : 'center', gap: isLeft ? 10 : 4 }}
+              data-discard={isMine ? '' : undefined}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                <div className={isMine && canPlay ? 'drop' : ''}>
+                  {pile.top ? (
+                    <TileView
+                      tile={pile.top}
+                      okey={okey}
+                      white={isJoker(pile.top, okey)}
+                      size={mobile ? 'sm' : 'md'}
+                      rotate={[5, -7, 8, -4][r]}
+                      target={canTake}
+                      onClick={canTake ? () => act({ type: 'takeLeft' }) : isMine && canPlay && selected !== null ? discardSelected : undefined}
+                      label={canTake ? `Soldan ${tileName(pile.top)} al` : undefined}
+                    />
+                  ) : isMine && canPlay && selected !== null ? (
+                    <button className="empty" style={{ background: 'transparent', cursor: 'pointer' }} aria-label="Seçili taşı at" onClick={discardSelected} />
+                  ) : (
+                    <div className="empty" />
+                  )}
+                </div>
+                <span className="cap">{isMine ? 'Senin attığın' : `${g.players[seat].name} attı`}</span>
+              </div>
+              {canTake && <span className="take-chip" style={{ marginBottom: 28 }}>{opened ? 'Soldan al' : 'Soldan al → aynı tur açmalısın'}</span>}
+            </div>
+          );
+        })}
+      </div>
+  );
+  const rackEl = (
+      <div className="rack">
+        {[0, 1].map((row) => (
+          <div key={row} className="rack-row">
+            {slots.slice(row * ROW, (row + 1) * ROW).map((id, k) => {
+              const i = row * ROW + k;
+              const tile = id !== null ? tilesById.get(id) : undefined;
+              return (
+                <div
+                  key={i}
+                  className={`slot ${dragOver === i ? 'over' : ''} ${!tile && selected !== null ? 'empty-click' : ''}`}
+                  data-slot={i}
+                  onClick={!tile && selected !== null ? () => moveTile(selected, i) : undefined}
+                >
+                  {tile && (
+                    <TileView
+                      tile={tile}
+                      okey={okey}
+                      selected={selected === tile.id}
+                      white={okeyWhite && isJoker(tile, okey)}
+                      pending={g.pendingLeftId === tile.id}
+                      arriving={arriving === tile.id}
+                      dim={drag?.id === tile.id}
+                      onPointerDown={onTilePointerDown(tile.id)}
+                      onPointerMove={onTilePointerMove}
+                      onPointerUp={(e) => endDrag(e, false)}
+                      onPointerCancel={(e) => endDrag(e, true)}
+                      onClick={() => {
+                        if (suppressClick.current) return;
+                        const nowMs = Date.now();
+                        const last = lastTap.current;
+                        lastTap.current = { id: tile.id, at: nowMs };
+                        // Okeye çift dokunma/tıklama: beyaz yap ya da geri al
+                        if (last && last.id === tile.id && nowMs - last.at < 350 && isJoker(tile, okey)) {
+                          setOkeyWhite((w) => !w);
+                          lastTap.current = null;
+                        }
+                        setSelected((s) => (s === tile.id ? null : tile.id));
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+  );
+  const overlays = (
+    <>
+      {drag && dragTile && (
+        <div className="drag-ghost" style={{ left: drag.x - 29, top: drag.y - 40 }} aria-hidden="true">
+          <TileView tile={dragTile} okey={okey} white={okeyWhite && isJoker(dragTile, okey)} />
+        </div>
+      )}
+
+      {Object.entries(bubbles).map(([seat, b]) => (
+        <div
+          key={b.id}
+          className={`bubble ${b.emoji ? 'emoji' : ''}`}
+          style={C.bubble[rel(Number(seat))]}
+          role="status"
+        >
+          {b.emoji ? b.text : (
+            <>
+              <b>{Number(seat) === me ? 'Sen' : g.players[Number(seat)]?.name}:</b> {b.text}
+            </>
+          )}
+        </div>
+      ))}
+
+      {pickerOpen && (
+        <div className="react-picker" role="group" aria-label="Tepkiler">
+          {REACTIONS.map((e) => (
+            <button
+              key={e}
+              type="button"
+              aria-label={`${e} tepkisi gönder`}
+              onClick={() => {
+                socket.emit('table:react', { emoji: e });
+                setPickerOpen(false);
+              }}
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {flights.map((f) => (
+        <div
+          key={f.id}
+          className="flight"
+          aria-hidden="true"
+          style={{
+            ['--fx' as string]: `${f.from.x - 23}px`,
+            ['--fy' as string]: `${f.from.y - 33}px`,
+            ['--tx' as string]: `${f.to.x - 23}px`,
+            ['--ty' as string]: `${f.to.y - 33}px`,
+          }}
+        >
+          {f.tile ? <TileView tile={f.tile} okey={okey} size="md" white={isJoker(f.tile, okey) && (C.pile.includes(f.to) || C.pile.includes(f.from))} /> : <div className="tile md back" />}
+        </div>
+      ))}
+
+      {scoreOpen && (
+        <ScoreModal
+          game={g}
+          settings={table.settings}
+          tab={scoreTab}
+          onTab={setScoreTab}
+          onClose={g.phase === 'gameOver' ? undefined : () => setScoreOpen(false)}
+          banner={
+            g.phase === 'handEnd' && lastHand ? (
+              <div className="card" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16, boxShadow: 'none', background: 'var(--chip)', color: 'var(--on-accent)' }}>
+                <span className="baloo" style={{ fontWeight: 800, fontSize: 24 }}>
+                  El {lastHand.handNo} bitti: {lastHand.finisher === null ? 'deste bitti' : `${g.players[lastHand.finisher].name} bitirdi`} ({lastHand.finishLabel.toLowerCase()})
+                </span>
+                {nextHandAt && (
+                  <span style={{ marginLeft: 'auto', fontWeight: 800 }}>
+                    Sonraki el {Math.max(0, Math.ceil((nextHandAt - now) / 1000))} sn içinde
+                  </span>
+                )}
+              </div>
+            ) : g.phase === 'gameOver' ? (
+              <div className="card" style={{ padding: '14px 20px', boxShadow: 'none', background: 'var(--good-bg)', color: 'var(--on-accent)' }}>
+                <span className="baloo" style={{ fontWeight: 800, fontSize: 26 }}>
+                  Oyun bitti! Kazanan: {table.settings.mode === 'esli'
+                    ? (g.totals[0] + g.totals[2] === g.totals[1] + g.totals[3]
+                      ? 'berabere'
+                      : g.totals[0] + g.totals[2] < g.totals[1] + g.totals[3]
+                        ? `${g.players[0].name} + ${g.players[2].name}`
+                        : `${g.players[1].name} + ${g.players[3].name}`)
+                    : totalsRank.filter((x) => x === 1).length > 1
+                      ? 'berabere'
+                      : g.players[winnerSeat].name}
+                </span>
+              </div>
+            ) : undefined
+          }
+          footer={
+            g.phase === 'gameOver' ? (
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                <button className="btn" onClick={() => socket.emit('table:leave')}>Lobiye dön</button>
+                {table.youAreHost && (
+                  <button className="btn go" onClick={() => socket.emit('table:restart')}>Yeni oyun</button>
+                )}
+              </div>
+            ) : undefined
+          }
+        />
+      )}
+    </>
+  );
+
+  // ---------- telefon (yatay) düzeni ----------
+  if (mobile) {
+    const oppChip = (r: 1 | 2 | 3, left: number) => {
+      const seat = seatAt(r);
+      const p = g.players[seat];
+      const isTurn = g.turn === seat && (g.phase === 'draw' || g.phase === 'play');
+      return (
+        <div key={r} className={`m-opp ${isTurn ? 'turn' : ''}`} style={{ left }}>
+          <Avatar url={p.avatar} name={p.name} size={32} bg={AVATAR_BG[seat]} isBot={p.isBot} dim={!p.connected} />
+          <div className="m-opp-text">
+            <span className="who">{p.name}{table.settings.mode === 'esli' && r === 2 ? ' (eş)' : ''}</span>
+            <span className={`st ${p.opened ? 'open' : ''}`}>
+              {!p.connected ? 'Bağlantı koptu' : p.opened ? `${p.opened === 'seri' ? `Seri ${p.openValue}` : `${p.openValue} çift`} · ${p.handCount} taş` : `${p.handCount} taş`}
+            </span>
+          </div>
+          {isTurn && !p.isBot && deadline && <span className="m-opp-secs">{timeLeft}</span>}
+        </div>
+      );
+    };
+    const ctx =
+      g.pendingLeftId !== null
+        ? { label: 'Geri koy', run: () => act({ type: 'cancelLeft' }), disabled: false, cls: '' }
+        : g.canDeclareGosterge
+          ? { label: 'Gösterge', run: () => act({ type: 'declareGosterge' }), disabled: false, cls: 'go' }
+          : { label: 'Çek', run: () => act({ type: 'draw' }), disabled: !canDraw || g.deckCount === 0, cls: canDraw ? 'go' : '' };
+    return (
+      <div className="m-game">
+        <div className="m-top">
+          <button className="icon-btn" aria-label="Menü: masa akışı, sohbet, puan" onClick={() => { setLogTab('log'); setSheet('log'); }}>
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
+          <span className="chip white">El {g.handNo}/{g.totalHands}</span>
+          {(g.phase === 'draw' || g.phase === 'play') && (
+            <span className={`chip turn-chip ${myTurn ? 'mine' : ''}`} role="status">
+              <Avatar url={g.players[g.turn].avatar} name={g.players[g.turn].name} size={26} bg={AVATAR_BG[g.turn]} isBot={g.players[g.turn].isBot} />
+              <span className="who">{myTurn ? 'Sıra sende' : g.players[g.turn].name}</span>
+              {timeLeft !== null && <span className="secs">{timeLeft}</span>}
+            </span>
+          )}
+          <span className="m-hint" role="status">{hint}</span>
+          <button className="icon-btn" aria-label="Tepki gönder" aria-expanded={pickerOpen} onClick={() => setPickerOpen((o) => !o)}>😊</button>
+          <button className="icon-btn" aria-label={`Sohbet${unread ? `, ${unread} okunmamış` : ''}`} style={{ position: 'relative' }} onClick={() => { setLogTab('chat'); setSheet('chat'); }}>
+            💬{unread > 0 && <span className="unread m-badge">{unread}</span>}
+          </button>
+          <button className="icon-btn" aria-label="Puan tablosu" onClick={() => { setScoreTab('genel'); setScoreOpen(true); }}>🏆</button>
+        </div>
+
+        {oppChip(3, 8)}
+        {oppChip(2, 400)}
+        {oppChip(1, 792)}
+
+        {feltEl}
+        {rackEl}
+
+        <div className="m-actions">
+          {!opened ? (
+            <div className="m-row">
+              <button className="btn stack" disabled={!canPlay} onClick={openSeri}>
+                Seri<span className="sub">{seriTotal}/{g.thresholds.seri}</span>
+              </button>
+              <button className="btn stack" disabled={!canPlay} onClick={openCift}>
+                Çift<span className="sub">{pairCount}/{g.thresholds.cift}</span>
+              </button>
+            </div>
+          ) : (
+            <button className="btn stack" disabled={!canPlay || (selected === null && layable.length === 0)} onClick={layMelds}>
+              İndir<span className="sub">{selected !== null ? 'seçili grup' : `${layable.length} per`}</span>
+            </button>
+          )}
+          <div className="m-row">
+            <button className="btn" onClick={() => arrange('seri')} aria-label="Seri diz">S.Diz</button>
+            <button className="btn" onClick={() => arrange('cift')} aria-label="Çift diz">Ç.Diz</button>
+          </div>
+          <button className={`btn ${ctx.cls}`} disabled={ctx.disabled} onClick={ctx.run}>{ctx.label}</button>
+          <button className="btn primary" disabled={!canPlay || selected === null} onClick={discardSelected} aria-label={selectedTile ? `At: ${tileName(selectedTile)}` : 'Atmak için taş seç'}>
+            At
+          </button>
+        </div>
+
+        {sheet && (
+          <>
+            <div className="overlay" onClick={() => setSheet(null)} />
+            <div className="m-sheet panel" role="dialog" aria-label="Masa menüsü">
+              <div className="m-sheet-head">
+                <div className="log-tabs" role="tablist">
+                  <button type="button" role="tab" aria-selected={sheet === 'log'} onClick={() => { setLogTab('log'); setSheet('log'); }}>Akış</button>
+                  <button type="button" role="tab" aria-selected={sheet === 'chat'} onClick={() => { setLogTab('chat'); setSheet('chat'); }}>
+                    Sohbet{unread > 0 && <span className="unread">{unread}</span>}
+                  </button>
+                  <button type="button" role="tab" aria-selected={sheet === 'score'} onClick={() => { setLogTab('log'); setSheet('score'); }}>Puan</button>
+                </div>
+                <button className="icon-x" aria-label="Kapat" onClick={() => setSheet(null)}>×</button>
+              </div>
+              <div className="m-sheet-body">
+                {sheet === 'log' && (
+                  <div className="log-list">
+                    {[...g.log].reverse().map((l) => (
+                      <div key={l.id} className={`log-item ${l.warn ? 'warn' : ''}`}>{l.text}</div>
+                    ))}
+                  </div>
+                )}
+                {sheet === 'chat' && (
+                  <>
+                    <div className="log-list">
+                      {table.chat.length === 0 && <div className="hint">Henüz mesaj yok.</div>}
+                      {[...table.chat].reverse().map((m) => (
+                        <div key={m.id} className={`log-item chat ${m.seat === table.mySeat ? 'mine' : ''}`}>
+                          <b>{m.seat === table.mySeat ? 'Sen' : m.name}:</b> {m.text}
+                        </div>
+                      ))}
+                    </div>
+                    <form className="chat-form" onSubmit={(e) => { e.preventDefault(); sendChat(); }}>
+                      <input className="input" value={chatDraft} maxLength={120} placeholder="Mesaj yaz…" aria-label="Sohbet mesajı" onChange={(e) => setChatDraft(e.target.value)} />
+                      <button className="btn small primary" type="submit" disabled={!chatDraft.trim()}>Gönder</button>
+                    </form>
+                  </>
+                )}
+                {sheet === 'score' && (
+                  <div role="table" aria-label="Puan özeti">
+                    <div className="mini-row head" role="row">
+                      <span role="columnheader">Oyuncu</span>
+                      <span role="columnheader">Son el</span>
+                      <span role="columnheader">Top.</span>
+                    </div>
+                    {g.players.map((p) => (
+                      <div key={p.seat} className="mini-row" role="row">
+                        <span role="rowheader">{p.seat === me ? 'Sen' : p.name}</span>
+                        <span role="cell">{lastHand ? lastHand.rows[p.seat].total : '—'}</span>
+                        <span role="cell" style={{ fontWeight: 900 }}>{g.totals[p.seat]}</span>
+                      </div>
+                    ))}
+                    <button className="btn small" style={{ marginTop: 10 }} onClick={() => { setSheet(null); setScoreTab('genel'); setScoreOpen(true); }}>Tam tabloyu aç</button>
+                  </div>
+                )}
+              </div>
+              <div className="m-sheet-foot">
+                <span className="hint">Elinde {g.hand.length} taş · {handPoints} puan</span>
+                {notifySupported() && (
+                  <button className={`btn small ${notifyOn ? 'primary' : ''}`} onClick={async () => setNotifyOn(await setNotifyEnabled(!notifyOn))}>
+                    {notifyOn ? 'Bildirim açık' : 'Bildirim'}
+                  </button>
+                )}
+                <button className="btn small danger" onClick={() => { if (window.confirm('Masadan çıkmak istiyor musun? Hamlelerin otomatik oynanır.')) socket.emit('table:leave'); }}>
+                  Masadan çık
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {overlays}
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="topbar">
@@ -579,89 +1014,7 @@ export function GameScreen({ table }: { table: TableView }) {
         </div>
       </div>
 
-      {/* ---------- masa ---------- */}
-      <div className="felt">
-        <div className="banner">
-          <span className="k">Açma sınırı</span>
-          <span>Seri {g.thresholds.seri}</span>
-          <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--chip)' }} />
-          <span>Çift {g.thresholds.cift}</span>
-        </div>
-
-        <FitBox className="zone-series">
-          <div className="meld-grid" style={{ gridTemplateRows: `repeat(${Math.max(1, Math.min(ZONE_ROWS, seriesMelds.length))}, 50px)` }}>
-            {seriesMelds.map(renderMeld)}
-          </div>
-        </FitBox>
-
-        <div className="center-col">
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            <div className="deck">
-              <div className="layer" style={{ left: 8, top: 0 }} />
-              <div className="layer" style={{ left: 4, top: 6 }} />
-              <button
-                className={canDraw ? 'can' : ''}
-                aria-label={`Desteden taş çek, ${g.deckCount} taş kaldı`}
-                disabled={!canDraw || g.deckCount === 0}
-                onClick={() => act({ type: 'draw' })}
-              >
-                {g.deckCount}
-              </button>
-            </div>
-            <span className="felt-label">Deste</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-            <TileView tile={g.gosterge} size="md" rotate={-6} label={`Gösterge: ${tileName(g.gosterge)}`} />
-            <span className="felt-label">Gösterge</span>
-          </div>
-          <div className="okey-chip">Okey: {faceName(okey)}</div>
-        </div>
-
-        <FitBox className="zone-pairs">
-          <div className="pair-grid" style={{ gridTemplateRows: `repeat(${Math.max(1, Math.min(ZONE_ROWS, pairMelds.length))}, 50px)` }}>
-            {pairMelds.map(renderMeld)}
-          </div>
-        </FitBox>
-
-        {[0, 1, 2, 3].map((r) => {
-          const seat = seatAt(r);
-          const pile = g.piles[seat];
-          const isLeft = r === 3;
-          const canTake = isLeft && canDraw && !!leftTop;
-          const isMine = r === 0;
-          return (
-            <div
-              key={r}
-              className="pile"
-              style={{ ...pileSpot[r], flexDirection: isLeft ? 'row' : 'column', alignItems: isLeft ? 'flex-end' : 'center', gap: isLeft ? 10 : 4 }}
-              data-discard={isMine ? '' : undefined}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <div className={isMine && canPlay ? 'drop' : ''}>
-                  {pile.top ? (
-                    <TileView
-                      tile={pile.top}
-                      okey={okey}
-                      white={isJoker(pile.top, okey)}
-                      size="md"
-                      rotate={[5, -7, 8, -4][r]}
-                      target={canTake}
-                      onClick={canTake ? () => act({ type: 'takeLeft' }) : isMine && canPlay && selected !== null ? discardSelected : undefined}
-                      label={canTake ? `Soldan ${tileName(pile.top)} al` : undefined}
-                    />
-                  ) : isMine && canPlay && selected !== null ? (
-                    <button className="empty" style={{ background: 'transparent', cursor: 'pointer' }} aria-label="Seçili taşı at" onClick={discardSelected} />
-                  ) : (
-                    <div className="empty" />
-                  )}
-                </div>
-                <span className="cap">{isMine ? 'Senin attığın' : `${g.players[seat].name} attı`}</span>
-              </div>
-              {canTake && <span className="take-chip" style={{ marginBottom: 28 }}>{opened ? 'Soldan al' : 'Soldan al → aynı tur açmalısın'}</span>}
-            </div>
-          );
-        })}
-      </div>
+      {feltEl}
 
       {opponent(2)}
       {opponent(3)}
@@ -731,48 +1084,7 @@ export function GameScreen({ table }: { table: TableView }) {
         <span className="hint" style={{ fontSize: 13 }}>Okeye çift tıkla, beyaz olsun</span>
       </div>
 
-      {/* ---------- ıstaka ---------- */}
-      <div className="rack">
-        {[0, 1].map((row) => (
-          <div key={row} className="rack-row">
-            {slots.slice(row * ROW, (row + 1) * ROW).map((id, k) => {
-              const i = row * ROW + k;
-              const tile = id !== null ? tilesById.get(id) : undefined;
-              return (
-                <div
-                  key={i}
-                  className={`slot ${dragOver === i ? 'over' : ''} ${!tile && selected !== null ? 'empty-click' : ''}`}
-                  data-slot={i}
-                  onClick={!tile && selected !== null ? () => moveTile(selected, i) : undefined}
-                >
-                  {tile && (
-                    <TileView
-                      tile={tile}
-                      okey={okey}
-                      selected={selected === tile.id}
-                      white={okeyWhite && isJoker(tile, okey)}
-                      pending={g.pendingLeftId === tile.id}
-                      arriving={arriving === tile.id}
-                      dim={drag?.id === tile.id}
-                      onPointerDown={onTilePointerDown(tile.id)}
-                      onPointerMove={onTilePointerMove}
-                      onPointerUp={(e) => endDrag(e, false)}
-                      onPointerCancel={(e) => endDrag(e, true)}
-                      onClick={() => {
-                        if (suppressClick.current) return;
-                        setSelected((s) => (s === tile.id ? null : tile.id));
-                      }}
-                      onDoubleClick={() => {
-                        if (isJoker(tile, okey)) setOkeyWhite((w) => !w);
-                      }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
+      {rackEl}
 
       {/* ---------- sağ panel ---------- */}
       <div className="side-col">
@@ -873,108 +1185,7 @@ export function GameScreen({ table }: { table: TableView }) {
         </button>
       </div>
 
-      {drag && dragTile && (
-        <div className="drag-ghost" style={{ left: drag.x - 29, top: drag.y - 40 }} aria-hidden="true">
-          <TileView tile={dragTile} okey={okey} white={okeyWhite && isJoker(dragTile, okey)} />
-        </div>
-      )}
-
-      {Object.entries(bubbles).map(([seat, b]) => (
-        <div
-          key={b.id}
-          className={`bubble ${b.emoji ? 'emoji' : ''}`}
-          style={BUBBLE_POS[rel(Number(seat))]}
-          role="status"
-        >
-          {b.emoji ? b.text : (
-            <>
-              <b>{Number(seat) === me ? 'Sen' : g.players[Number(seat)]?.name}:</b> {b.text}
-            </>
-          )}
-        </div>
-      ))}
-
-      {pickerOpen && (
-        <div className="react-picker" role="group" aria-label="Tepkiler">
-          {REACTIONS.map((e) => (
-            <button
-              key={e}
-              type="button"
-              aria-label={`${e} tepkisi gönder`}
-              onClick={() => {
-                socket.emit('table:react', { emoji: e });
-                setPickerOpen(false);
-              }}
-            >
-              {e}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {flights.map((f) => (
-        <div
-          key={f.id}
-          className="flight"
-          aria-hidden="true"
-          style={{
-            ['--fx' as string]: `${f.from.x - 23}px`,
-            ['--fy' as string]: `${f.from.y - 33}px`,
-            ['--tx' as string]: `${f.to.x - 23}px`,
-            ['--ty' as string]: `${f.to.y - 33}px`,
-          }}
-        >
-          {f.tile ? <TileView tile={f.tile} okey={okey} size="md" white={isJoker(f.tile, okey) && (PILE_XY.includes(f.to) || PILE_XY.includes(f.from))} /> : <div className="tile md back" />}
-        </div>
-      ))}
-
-      {scoreOpen && (
-        <ScoreModal
-          game={g}
-          settings={table.settings}
-          tab={scoreTab}
-          onTab={setScoreTab}
-          onClose={g.phase === 'gameOver' ? undefined : () => setScoreOpen(false)}
-          banner={
-            g.phase === 'handEnd' && lastHand ? (
-              <div className="card" style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 16, boxShadow: 'none', background: 'var(--chip)', color: 'var(--on-accent)' }}>
-                <span className="baloo" style={{ fontWeight: 800, fontSize: 24 }}>
-                  El {lastHand.handNo} bitti: {lastHand.finisher === null ? 'deste bitti' : `${g.players[lastHand.finisher].name} bitirdi`} ({lastHand.finishLabel.toLowerCase()})
-                </span>
-                {nextHandAt && (
-                  <span style={{ marginLeft: 'auto', fontWeight: 800 }}>
-                    Sonraki el {Math.max(0, Math.ceil((nextHandAt - now) / 1000))} sn içinde
-                  </span>
-                )}
-              </div>
-            ) : g.phase === 'gameOver' ? (
-              <div className="card" style={{ padding: '14px 20px', boxShadow: 'none', background: 'var(--good-bg)', color: 'var(--on-accent)' }}>
-                <span className="baloo" style={{ fontWeight: 800, fontSize: 26 }}>
-                  Oyun bitti! Kazanan: {table.settings.mode === 'esli'
-                    ? (g.totals[0] + g.totals[2] === g.totals[1] + g.totals[3]
-                      ? 'berabere'
-                      : g.totals[0] + g.totals[2] < g.totals[1] + g.totals[3]
-                        ? `${g.players[0].name} + ${g.players[2].name}`
-                        : `${g.players[1].name} + ${g.players[3].name}`)
-                    : totalsRank.filter((x) => x === 1).length > 1
-                      ? 'berabere'
-                      : g.players[winnerSeat].name}
-                </span>
-              </div>
-            ) : undefined
-          }
-          footer={
-            g.phase === 'gameOver' ? (
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                <button className="btn" onClick={() => socket.emit('table:leave')}>Lobiye dön</button>
-                {table.youAreHost && (
-                  <button className="btn go" onClick={() => socket.emit('table:restart')}>Yeni oyun</button>
-                )}
-              </div>
-            ) : undefined
-          }
-        />
-      )}
+      {overlays}
     </>
   );
 }

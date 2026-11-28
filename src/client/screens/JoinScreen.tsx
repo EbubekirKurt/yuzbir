@@ -32,10 +32,10 @@ export function JoinScreen(props: { tableId: string; me: Me; onMe: (me: Me) => v
 
   return (
     <>
-      <div style={{ position: 'absolute', left: 48, top: 32 }}>
+      <div className="top-left" style={{ position: 'absolute', left: 48, top: 32 }}>
         <Logo />
       </div>
-      <button className="btn" style={{ position: 'absolute', right: 48, top: 44 }} onClick={props.onCancel}>
+      <button className="btn top-right" style={{ position: 'absolute', right: 48, top: 44 }} onClick={props.onCancel}>
         Lobiye dön
       </button>
       <div className="panel" style={{ left: 260, top: 150, width: 1400, height: 860 }}>
@@ -43,7 +43,7 @@ export function JoinScreen(props: { tableId: string; me: Me; onMe: (me: Me) => v
           <h1>{peek ? `Masaya katıl: ${peek.name}` : 'Masaya katıl'}</h1>
           {peek && <span className="meta">{settingsText(peek.settings)}</span>}
         </div>
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 560px', gap: 48, padding: '36px 48px 40px' }}>
+        <div className="split" style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 560px', gap: 48, padding: '36px 48px 40px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
             <h2 className="baloo" style={{ margin: 0, fontSize: 28 }}>Profilin</h2>
             <p className="hint" style={{ margin: 0, fontSize: 16 }}>

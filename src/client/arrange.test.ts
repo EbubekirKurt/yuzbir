@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeSet } from '../shared/melds';
 import type { Color, Face, Tile } from '../shared/types';
-import { arrangeSeri } from './arrange';
+import { arrangeCift, arrangeSeri } from './arrange';
 
 let id = 1;
 const t = (color: Color, num: number): Tile => ({ id: id++, color, num, fake: false });
@@ -41,5 +41,23 @@ describe('Seri Diz (okeyli)', () => {
   it('okeysiz elde de eskisi gibi çalışır', () => {
     const { total } = check([t('K', 9), t('K', 10), t('K', 11), t('B', 7), t('Y', 7), t('R', 7), t('Y', 1)]);
     expect(total).toBe(30 + 21);
+  });
+});
+
+describe('Çift Diz (gösterge)', () => {
+  it('bildirilen göstergeyi en yüksek eşi olmayan taşla çift yapar', () => {
+    const gost = t('B', 5); // gösterge mavi 5 olsun, eli bildirilmiş
+    const hand = [t('Y', 2), t('Y', 2), t('K', 13), t('R', 3), gost, t('Y', 7)];
+    const a = arrangeCift(hand, OKEY, gost.id);
+    const byId = new Map(hand.map((x) => [x.id, x]));
+    const gBlock = a.blocks.find((b) => b.includes(gost.id))!;
+    expect(gBlock).toHaveLength(2);
+    expect(byId.get(gBlock.find((i) => i !== gost.id)!)).toMatchObject({ color: 'K', num: 13 });
+    expect(a.blocks).toHaveLength(2); // sarı 2 çifti + gösterge çifti
+  });
+
+  it('gösterge bildirilmediyse eskisi gibi çalışır', () => {
+    const hand = [t('Y', 2), t('Y', 2), t('K', 13)];
+    expect(arrangeCift(hand, OKEY).blocks).toHaveLength(1);
   });
 });

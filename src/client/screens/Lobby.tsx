@@ -22,17 +22,17 @@ export function Lobby(props: {
 }) {
   return (
     <>
-      <div style={{ position: 'absolute', left: 48, top: 32 }}>
+      <div className="top-left" style={{ position: 'absolute', left: 48, top: 32 }}>
         <Logo />
       </div>
-      <div style={{ position: 'absolute', right: 48, top: 30, display: 'flex', gap: 12, alignItems: 'center' }}>
+      <div className="top-right" style={{ position: 'absolute', right: 48, top: 30, display: 'flex', gap: 12, alignItems: 'center' }}>
         <button className="btn" style={{ height: 64, paddingLeft: 8 }} onClick={props.onProfile} aria-label="Profilini düzenle">
           <Avatar url={props.me.avatarUrl} name={props.me.displayName} size={46} bg="var(--orange)" />
           {props.me.displayName}
         </button>
         <button className="btn danger" onClick={props.onLogout}>Çıkış</button>
       </div>
-      <div className="panel" style={{ left: 1300, top: 150, width: 560, height: 820 }}>
+      <div className="panel friends-card" style={{ left: 1300, top: 150, width: 560, height: 820 }}>
         <div className="panel-head">
           <h2>Arkadaşlar</h2>
         </div>

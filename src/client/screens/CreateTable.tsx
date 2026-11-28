@@ -68,10 +68,10 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
 
   return (
     <>
-      <div style={{ position: 'absolute', left: 48, top: 32 }}>
+      <div className="top-left" style={{ position: 'absolute', left: 48, top: 32 }}>
         <Logo />
       </div>
-      <button className="btn" style={{ position: 'absolute', right: 48, top: 44 }} onClick={onCancel}>
+      <button className="btn top-right" style={{ position: 'absolute', right: 48, top: 44 }} onClick={onCancel}>
         Lobiye dön
       </button>
       <form
@@ -85,7 +85,7 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
         <div className="panel-head">
           <h1>Yeni Masa Kur</h1>
         </div>
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '720px minmax(0, 1fr)', gap: 48, padding: '36px 48px 40px' }}>
+        <div className="split" style={{ flex: 1, display: 'grid', gridTemplateColumns: '720px minmax(0, 1fr)', gap: 48, padding: '36px 48px 40px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <label className="label" htmlFor="masaAdi">Masa adı</label>

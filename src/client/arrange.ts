@@ -131,10 +131,15 @@ export function arrangeSeri(hand: Tile[], okey: Face): Arrangement {
   return { blocks: blocks.map((b) => b.map((t) => t.id)), rest };
 }
 
-/** Aynı taşları çift yapar, okeyleri en yüksek tek taşlarla eşleştirir. */
-export function arrangeCift(hand: Tile[], okey: Face): Arrangement {
-  const jokers = hand.filter((t) => isJoker(t, okey));
-  const reals = sortTiles(hand.filter((t) => !isJoker(t, okey)), okey);
+/**
+ * Aynı taşları çift yapar, okeyleri en yüksek tek taşlarla eşleştirir.
+ * Gösterge bildirildiyse (gostergeId) gösterge de en yüksek eşi olmayan taşla çift yapılır
+ * (gösterge + herhangi bir taş = 1 çift); böylece elden yüksek bir taş da çıkar.
+ */
+export function arrangeCift(hand: Tile[], okey: Face, gostergeId: number | null = null): Arrangement {
+  const gosterge = gostergeId !== null ? hand.find((t) => t.id === gostergeId) ?? null : null;
+  const jokers = hand.filter((t) => isJoker(t, okey) && t !== gosterge);
+  const reals = sortTiles(hand.filter((t) => !isJoker(t, okey) && t !== gosterge), okey);
   const byFace = new Map<string, Tile[]>();
   for (const t of reals) {
     const f = face(t, okey);
@@ -152,6 +157,12 @@ export function arrangeCift(hand: Tile[], okey: Face): Arrangement {
     const s = singles.shift();
     if (s) blocks.push([s.id, j.id]);
     else singles.push(j);
+  }
+  if (gosterge) {
+    // Okey olmayan en yüksek tek taş göstergenin yanına
+    const i = singles.findIndex((t) => !isJoker(t, okey));
+    if (i >= 0) blocks.push([gosterge.id, singles.splice(i, 1)[0].id]);
+    else blocks.push([gosterge.id]);
   }
   const rest = sortTiles(singles, okey).map((t) => t.id);
   return { blocks, rest };

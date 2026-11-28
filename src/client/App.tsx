@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { LobbyTable, Me, TableInvite, TableView } from '../shared/types';
 import { ProfileEditor } from './components/ProfileEditor';
 import { Radio } from './components/Radio';
-import { Logo, Stage } from './components/Stage';
+import { Logo, Stage, useIsMobile } from './components/Stage';
 import { AuthScreen } from './screens/AuthScreen';
 import { CreateTable } from './screens/CreateTable';
 import { GameScreen } from './screens/GameScreen';
@@ -83,6 +83,10 @@ export default function App() {
   const [joinId, setJoinId] = useState<string | null>(inviteFromUrl());
   const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
   const [invites, setInvites] = useState<TableInvite[]>([]);
+  const mobile = useIsMobile();
+  useEffect(() => {
+    document.documentElement.classList.toggle('mobile', mobile);
+  }, [mobile]);
   const tableRef = useRef<TableView | null>(null);
   tableRef.current = table;
   const dropInvite = (id: number) => setInvites((l) => l.filter((x) => x.id !== id));
@@ -174,7 +178,7 @@ export default function App() {
   } else if (me === null) {
     screen = <AuthScreen invited={!!joinId} onAuthed={setMe} />;
   } else if (table && table.status === 'playing' && table.game) {
-    screen = <GameScreen table={table} />;
+    screen = <GameScreen table={table} mobile={mobile} />;
   } else if (table) {
     screen = <WaitingRoom table={table} />;
   } else if (joinId) {
@@ -192,7 +196,7 @@ export default function App() {
   } else if (profileOpen) {
     screen = (
       <>
-        <div style={{ position: 'absolute', left: 48, top: 32 }}>
+        <div className="top-left" style={{ position: 'absolute', left: 48, top: 32 }}>
           <Logo />
         </div>
         <div className="panel" style={{ left: 460, top: 200, width: 1000, height: 520 }}>
@@ -226,7 +230,7 @@ export default function App() {
 
   return (
     <>
-      <Stage>{screen}</Stage>
+      <Stage mode={mobile ? (table && table.status === 'playing' && table.game ? 'game' : 'page') : 'fixed'}>{screen}</Stage>
       <SoundToggle />
       <ThemeToggle />
       <Radio />

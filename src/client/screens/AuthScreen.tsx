@@ -28,7 +28,7 @@ export function AuthScreen({ onAuthed, invited }: { onAuthed: (me: Me) => void; 
 
   return (
     <>
-      <div style={{ position: 'absolute', left: 48, top: 32 }}>
+      <div className="top-left" style={{ position: 'absolute', left: 48, top: 32 }}>
         <Logo />
       </div>
       <form

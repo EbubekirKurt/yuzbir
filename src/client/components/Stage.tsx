@@ -1,30 +1,72 @@
 import { useEffect, useState, type ReactNode } from 'react';
 
-/** 1920×1080 sahneyi pencereye sığacak şekilde ölçekler. */
-export function Stage({ children }: { children: ReactNode }) {
-  const [box, setBox] = useState({ scale: 1, x: 0, y: 0 });
+/** Telefon mu? Dar ekran ya da dokunmatik + küçük ekran. */
+export function useIsMobile() {
+  const query = '(max-width: 760px), (max-height: 520px), (pointer: coarse) and (max-width: 1100px)';
+  const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setMobile(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return mobile;
+}
+
+/**
+ * Sahne:
+ * - fixed: 1920×1080 tuvali pencereye sığdırır (masaüstü)
+ * - game: telefonda yatay oyun için 1100×500 tuval; dik tutulursa "yan çevir" uyarısı
+ * - page: telefonda menü ekranları; ölçekleme yok, sayfa dikey kayar
+ */
+export function Stage({ children, mode = 'fixed' }: { children: ReactNode; mode?: 'fixed' | 'game' | 'page' }) {
+  const W = mode === 'game' ? 1100 : 1920;
+  const H = mode === 'game' ? 500 : 1080;
+  const [box, setBox] = useState({ scale: 1, x: 0, y: 0, portrait: false });
   useEffect(() => {
     const fit = () => {
-      const scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+      const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
       setBox({
         scale,
-        x: (window.innerWidth - 1920 * scale) / 2,
-        y: (window.innerHeight - 1080 * scale) / 2,
+        x: (window.innerWidth - W * scale) / 2,
+        y: (window.innerHeight - H * scale) / 2,
+        portrait: window.innerHeight > window.innerWidth,
       });
     };
     fit();
     window.addEventListener('resize', fit);
-    return () => window.removeEventListener('resize', fit);
-  }, []);
+    window.addEventListener('orientationchange', fit);
+    return () => {
+      window.removeEventListener('resize', fit);
+      window.removeEventListener('orientationchange', fit);
+    };
+  }, [W, H]);
+
+  if (mode === 'page') {
+    return (
+      <div className="stage-wrap">
+        <Scene />
+        <div className="mobile-page">{children}</div>
+      </div>
+    );
+  }
   return (
     <div className="stage-wrap">
       <Scene />
-      <div
-        className="stage"
-        style={{ transform: `translate(${box.x}px, ${box.y}px) scale(${box.scale})` }}
-      >
+      <div className="stage" style={{ width: W, height: H, transform: `translate(${box.x}px, ${box.y}px) scale(${box.scale})` }}>
         {children}
       </div>
+      {mode === 'game' && box.portrait && (
+        <div className="rotate-hint" role="alert">
+          <svg aria-hidden="true" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="7" y="2" width="10" height="20" rx="2" />
+            <path d="M3 14a9 9 0 0 0 7 7" />
+            <path d="M3 18v-4h4" />
+          </svg>
+          <b>Telefonunu yan çevir</b>
+          <span>Oyun yatay ekranda oynanır.</span>
+        </div>
+      )}
     </div>
   );
 }

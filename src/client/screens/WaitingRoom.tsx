@@ -34,10 +34,10 @@ export function WaitingRoom({ table }: { table: TableView }) {
 
   return (
     <>
-      <div style={{ position: 'absolute', left: 48, top: 32 }}>
+      <div className="top-left" style={{ position: 'absolute', left: 48, top: 32 }}>
         <Logo />
       </div>
-      <button className="btn danger" style={{ position: 'absolute', right: 48, top: 44 }} onClick={() => socket.emit('table:leave')}>
+      <button className="btn danger top-right" style={{ position: 'absolute', right: 48, top: 44 }} onClick={() => socket.emit('table:leave')}>
         Masadan çık
       </button>
       <div className="panel" style={{ left: 260, top: 150, width: 1400, height: 860 }}>
@@ -45,8 +45,8 @@ export function WaitingRoom({ table }: { table: TableView }) {
           <h1>{table.name}</h1>
           <span className="meta">{settingsText(table.settings)}</span>
         </div>
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '720px minmax(0, 1fr)', gap: 48, padding: '36px 48px 40px' }}>
-          <div style={{ position: 'relative', height: 480 }}>
+        <div className="split" style={{ flex: 1, display: 'grid', gridTemplateColumns: '720px minmax(0, 1fr)', gap: 48, padding: '36px 48px 40px' }}>
+          <div className="seat-board" style={{ position: 'relative', height: 480 }}>
             <span className="label">Koltuklar</span>
             <div
               aria-hidden="true"
