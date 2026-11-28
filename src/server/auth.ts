@@ -46,6 +46,8 @@ export interface User {
   avatar: { data: Buffer; type: string } | null;
   avatarVersion: number;
   createdAt: Date;
+  /** Radyoda yıldızlanan istasyonların kimlikleri (eklenme sırasıyla). */
+  radioFavorites: string[];
 }
 
 export interface PublicUser {
@@ -72,7 +74,7 @@ interface Store {
   findByUsername(username: string): Promise<User | null>;
   findById(id: string): Promise<User | null>;
   create(u: Omit<User, 'id'>): Promise<User>;
-  update(id: string, patch: Partial<Pick<User, 'displayName' | 'avatar' | 'avatarVersion'>>): Promise<User | null>;
+  update(id: string, patch: Partial<Pick<User, 'displayName' | 'avatar' | 'avatarVersion' | 'radioFavorites'>>): Promise<User | null>;
   createSession(userId: string, tokenHash: string, expiresAt: Date): Promise<void>;
   findSession(tokenHash: string): Promise<{ userId: string; expiresAt: Date } | null>;
   deleteSession(tokenHash: string): Promise<void>;
@@ -120,6 +122,7 @@ interface UserDoc {
   avatar: { data: { buffer: ArrayBuffer } | Buffer; type: string } | null;
   avatarVersion: number;
   createdAt: Date;
+  radioFavorites?: string[];
 }
 
 class MongoStore implements Store {
@@ -149,6 +152,7 @@ class MongoStore implements Store {
       avatar: data && d.avatar ? { data, type: d.avatar.type } : null,
       avatarVersion: d.avatarVersion ?? 0,
       createdAt: d.createdAt,
+      radioFavorites: d.radioFavorites ?? [],
     };
   }
   async findByUsername(username: string) {
@@ -236,6 +240,7 @@ export async function register(usernameRaw: unknown, passwordRaw: unknown) {
       passwordHash: await hashPassword(password),
       avatar: null,
       avatarVersion: 0,
+      radioFavorites: [],
       createdAt: new Date(),
     });
   } catch (err) {
@@ -305,6 +310,24 @@ export async function updateProfile(userId: string, body: { displayName?: unknow
     patch.avatarVersion = current.avatarVersion + 1;
   }
   return (await s.update(userId, patch))!;
+}
+
+const STATION_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
+export const MAX_RADIO_FAVORITES = 60;
+
+/** İstasyonu favorilere ekler (on) ya da çıkarır; güncel listeyi döndürür. */
+export async function setRadioFavorite(userId: string, stationId: string, on: boolean): Promise<string[]> {
+  if (!STATION_ID_RE.test(stationId)) throw new AuthError('Geçersiz istasyon.');
+  const s = getStore();
+  const current = await s.findById(userId);
+  if (!current) throw new AuthError('Kullanıcı bulunamadı.', 404);
+  const list = current.radioFavorites.filter((id) => id !== stationId);
+  if (on) {
+    if (list.length >= MAX_RADIO_FAVORITES) throw new AuthError(`En fazla ${MAX_RADIO_FAVORITES} favori kanal eklenebilir.`);
+    list.push(stationId);
+  }
+  const updated = await s.update(userId, { radioFavorites: list });
+  return updated?.radioFavorites ?? list;
 }
 
 export function parseCookies(header: string | undefined): Record<string, string> {

@@ -18,6 +18,7 @@ import {
   parseCookies,
   publicUser,
   register,
+  setRadioFavorite,
   SESSION_COOKIE,
   SESSION_MAX_AGE,
   updateProfile,
@@ -271,6 +272,29 @@ app.get(
   route(async (_req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=600');
     res.json(await radioCategories());
+  }),
+);
+
+// Kullanıcının favori radyo kanalları (hesaba kayıtlı; her cihazda aynı).
+app.get(
+  '/api/radio/favorites',
+  route(async (req, res) => {
+    const user = await requireUser(req);
+    res.json({ ids: user.radioFavorites });
+  }),
+);
+app.put(
+  '/api/radio/favorites/:id',
+  route(async (req, res) => {
+    const user = await requireUser(req);
+    res.json({ ids: await setRadioFavorite(user.id, String(req.params.id), true) });
+  }),
+);
+app.delete(
+  '/api/radio/favorites/:id',
+  route(async (req, res) => {
+    const user = await requireUser(req);
+    res.json({ ids: await setRadioFavorite(user.id, String(req.params.id), false) });
   }),
 );
 

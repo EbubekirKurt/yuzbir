@@ -2,6 +2,22 @@ import { useEffect, useRef, useState } from 'react';
 import type { RadioCategory, RadioStation } from '../../shared/types';
 
 const KEY = 'yuzbir.radio';
+const FAV_CAT = 'favoriler';
+
+async function favoritesRequest(method: 'GET' | 'PUT' | 'DELETE', id?: string): Promise<string[]> {
+  const r = await fetch(`/api/radio/favorites${id ? `/${encodeURIComponent(id)}` : ''}`, { method, credentials: 'same-origin' });
+  const body = (await r.json().catch(() => ({}))) as { ids?: string[]; error?: string };
+  if (!r.ok || !Array.isArray(body.ids)) throw new Error(body.error ?? 'Favoriler kaydedilemedi.');
+  return body.ids;
+}
+
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round">
+      <path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z" />
+    </svg>
+  );
+}
 
 interface Saved {
   categoryId?: string;
@@ -50,6 +66,9 @@ export function Radio() {
   const [error, setError] = useState<string | null>(null);
   const [volume, setVolume] = useState(saved.current.volume ?? 0.6);
   const failCount = useRef(0);
+  /** null: favoriler yüklenemedi (ör. giriş yapılmamış), yıldızlar gizlenir. */
+  const [favIds, setFavIds] = useState<string[] | null>(null);
+  const [favError, setFavError] = useState<string | null>(null);
 
   // Ses öğesi bir kez oluşturulur; ekran değişse de çalmaya devam eder.
   useEffect(() => {
@@ -88,15 +107,47 @@ export function Radio() {
       .then((data: RadioCategory[]) => {
         if (!data.length) throw new Error('Şu an kanal listesine ulaşılamıyor.');
         setCats(data);
-        const cat = data.find((c) => c.id === catId) ?? data[0];
-        setCatId(cat.id);
-        const st = cat.stations.find((s) => s.id === saved.current.stationId);
+        if (catId !== FAV_CAT && !data.some((c) => c.id === catId)) setCatId(data[0].id);
+        const st = data.flatMap((c) => c.stations).find((s) => s.id === saved.current.stationId);
         if (st) setStation(st);
       })
       .catch((err) => setLoadError((err as Error).message));
   }, [open, cats, catId]);
 
-  const category = cats?.find((c) => c.id === catId) ?? cats?.[0];
+  // Favoriler her açılışta hesaptan okunur (giriş/çıkış ya da başka cihazda değişiklik sonrası güncel olsun).
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    favoritesRequest('GET')
+      .then((ids) => alive && setFavIds(ids))
+      .catch(() => alive && setFavIds(null));
+    return () => {
+      alive = false;
+    };
+  }, [open]);
+
+  // Favoriler, kategorilerin başında sanal bir kategori olarak gösterilir.
+  // Listede artık olmayan (yayını kapanan) istasyonlar gizlenir ama hesapta saklı kalır.
+  const allStations = new Map((cats ?? []).flatMap((c) => c.stations).map((s) => [s.id, s] as const));
+  const favCategory: RadioCategory | null =
+    cats && favIds ? { id: FAV_CAT, name: '★ Favoriler', stations: favIds.map((id) => allStations.get(id)).filter((s): s is RadioStation => !!s) } : null;
+  const shownCats = cats ? (favCategory ? [favCategory, ...cats] : cats) : null;
+  const category = shownCats?.find((c) => c.id === catId) ?? cats?.[0];
+  const isFav = (id: string) => !!favIds?.includes(id);
+
+  const toggleFav = (st: RadioStation) => {
+    if (!favIds) return;
+    const on = !isFav(st.id);
+    const before = favIds;
+    setFavIds(on ? [...favIds, st.id] : favIds.filter((id) => id !== st.id)); // hemen göster
+    setFavError(null);
+    favoritesRequest(on ? 'PUT' : 'DELETE', st.id)
+      .then(setFavIds)
+      .catch((err) => {
+        setFavIds(before);
+        setFavError((err as Error).message);
+      });
+  };
 
   const play = (st: RadioStation) => {
     const a = audio.current;
@@ -173,34 +224,66 @@ export function Radio() {
           {cats && category && (
             <>
               <div className="radio-cats" role="group" aria-label="Kategori">
-                {cats.map((c) => (
+                {shownCats!.map((c) => (
                   <button key={c.id} type="button" className="radio-cat" aria-pressed={c.id === category.id} onClick={() => setCatId(c.id)}>
                     {c.name}
                   </button>
                 ))}
               </div>
 
-              <ul className="radio-list" aria-label={`${category.name} kanalları`}>
-                {category.stations.map((s) => {
-                  const active = station?.id === s.id;
-                  return (
-                    <li key={s.id}>
-                      <button type="button" className={`radio-station ${active ? 'active' : ''}`} aria-current={active} onClick={() => play(s)}>
-                        <span className="radio-fav" aria-hidden="true">
-                          {s.favicon ? <img src={s.favicon} alt="" width={22} height={22} loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')} /> : null}
-                        </span>
-                        <span className="radio-name">{s.name}</span>
-                        <span className="radio-meta">{s.country}{s.bitrate ? ` · ${s.bitrate}k` : ''}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+              {category.id === FAV_CAT && !category.stations.length ? (
+                <div className="radio-msg">Henüz favori kanalın yok. Bir kanalın yanındaki yıldıza dokunarak ekleyebilirsin.</div>
+              ) : (
+                <ul className="radio-list" aria-label={`${category.name} kanalları`}>
+                  {category.stations.map((s) => {
+                    const active = station?.id === s.id;
+                    const fav = isFav(s.id);
+                    return (
+                      <li key={s.id} className="radio-row">
+                        <button type="button" className={`radio-station ${active ? 'active' : ''}`} aria-current={active} onClick={() => play(s)}>
+                          <span className="radio-fav" aria-hidden="true">
+                            {s.favicon ? <img src={s.favicon} alt="" width={22} height={22} loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')} /> : null}
+                          </span>
+                          <span className="radio-name">{s.name}</span>
+                          <span className="radio-meta">{s.country}{s.bitrate ? ` · ${s.bitrate}k` : ''}</span>
+                        </button>
+                        {favIds && (
+                          <button
+                            type="button"
+                            className={`radio-star ${fav ? 'on' : ''}`}
+                            aria-pressed={fav}
+                            aria-label={fav ? `${s.name} favorilerden çıkar` : `${s.name} favorilere ekle`}
+                            title={fav ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+                            onClick={() => toggleFav(s)}
+                          >
+                            <StarIcon filled={fav} />
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              {favError && <div className="radio-msg error">{favError}</div>}
             </>
           )}
 
           <div className="radio-now" role="status" aria-live="polite">
-            <span className="radio-now-name">{station?.name ?? '—'}</span>
+            <span className="radio-now-name">
+              {station && favIds && (
+                <button
+                  type="button"
+                  className={`radio-star small ${isFav(station.id) ? 'on' : ''}`}
+                  aria-pressed={isFav(station.id)}
+                  aria-label={isFav(station.id) ? 'Çalan kanalı favorilerden çıkar' : 'Çalan kanalı favorilere ekle'}
+                  title={isFav(station.id) ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+                  onClick={() => toggleFav(station)}
+                >
+                  <StarIcon filled={isFav(station.id)} />
+                </button>
+              )}
+              <span className="radio-now-text">{station?.name ?? '—'}</span>
+            </span>
             <span className={`radio-now-status ${error ? 'error' : ''}`}>{status}</span>
           </div>
 
