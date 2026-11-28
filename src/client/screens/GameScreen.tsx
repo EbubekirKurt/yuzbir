@@ -87,6 +87,35 @@ function initialSlots(hand: Tile[], okey: Face) {
   return layoutSlots({ blocks: [], rest: sortTiles(hand, okey).map((t) => t.id) });
 }
 
+
+/** Düğme simgeleri: emoji yazı tipine göre kaydığı için çizimle (her yerde ortalı). */
+function SmileIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" fill="#FFD23F" stroke="#3B2A1A" strokeWidth="1.6" />
+      <circle cx="8.6" cy="10" r="1.4" fill="#3B2A1A" />
+      <circle cx="15.4" cy="10" r="1.4" fill="#3B2A1A" />
+      <path d="M7.5 14.2c1.2 1.8 2.7 2.6 4.5 2.6s3.3-.8 4.5-2.6" fill="none" stroke="#3B2A1A" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+function ChatIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinejoin="round">
+      <path d="M4 5h16v11H9l-5 4z" />
+    </svg>
+  );
+}
+function TrophyIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 4h10v5a5 5 0 0 1-10 0z" />
+      <path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4" />
+      <path d="M12 14v4M8 20h8" />
+    </svg>
+  );
+}
+
 export function GameScreen({ table, mobile = false }: { table: TableView; mobile?: boolean }) {
   const C = mobile ? MOBILE : DESKTOP;
   const coordsRef = useRef(C);
@@ -868,11 +897,11 @@ export function GameScreen({ table, mobile = false }: { table: TableView; mobile
             </span>
           )}
           <span className="m-hint" role="status">{hint}</span>
-          <button className="icon-btn" aria-label="Tepki gönder" aria-expanded={pickerOpen} onClick={() => setPickerOpen((o) => !o)}>😊</button>
+          <button className="icon-btn" aria-label="Tepki gönder" aria-expanded={pickerOpen} onClick={() => setPickerOpen((o) => !o)}><SmileIcon /></button>
           <button className="icon-btn" aria-label={`Sohbet${unread ? `, ${unread} okunmamış` : ''}`} style={{ position: 'relative' }} onClick={() => { setLogTab('chat'); setSheet('chat'); }}>
-            💬{unread > 0 && <span className="unread m-badge">{unread}</span>}
+            <ChatIcon />{unread > 0 && <span className="unread m-badge">{unread}</span>}
           </button>
-          <button className="icon-btn" aria-label="Puan tablosu" onClick={() => { setScoreTab('genel'); setScoreOpen(true); }}>🏆</button>
+          <button className="icon-btn" aria-label="Puan tablosu" onClick={() => { setScoreTab('genel'); setScoreOpen(true); }}><TrophyIcon /></button>
         </div>
 
         {oppChip(3, 8)}
@@ -1054,7 +1083,7 @@ export function GameScreen({ table, mobile = false }: { table: TableView; mobile
             title="Tepki gönder"
             onClick={() => setPickerOpen((o) => !o)}
           >
-            😊
+            <SmileIcon size={26} />
           </button>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
             <span style={{ fontWeight: 900, fontSize: 19, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mine.name}</span>
