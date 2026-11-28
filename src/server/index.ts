@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Server, type Socket } from 'socket.io';
-import type { GameAction, Settings } from '../shared/types';
+import { REACTIONS, type GameAction, type Settings } from '../shared/types';
 import {
   AuthError,
   avatarUrl,
@@ -379,6 +379,27 @@ io.on('connection', (socket: Socket) => {
     const err = t.act(me.playerId, action);
     if (err) toast(err);
     broadcastTable(t);
+  });
+
+  socket.on('table:chat', (data: { text?: string }) => {
+    const t = me.tableId ? tables.get(me.tableId) : undefined;
+    if (!t) return;
+    const res = t.addChat(me.playerId, data?.text);
+    if (typeof res === 'string') return toast(res);
+    broadcastTable(t);
+  });
+
+  socket.on('table:react', (data: { emoji?: string }) => {
+    const t = me.tableId ? tables.get(me.tableId) : undefined;
+    const seat = t ? t.seatOf(me.playerId) : -1;
+    if (!t || seat < 0) return;
+    const emoji = String(data?.emoji ?? '');
+    if (!(REACTIONS as readonly string[]).includes(emoji) || t.tooFast(`r:${me.playerId}`, 700)) return;
+    // Tepkiler kaydedilmez; masadakilere anlık gönderilir.
+    for (const pid of t.humanIds()) {
+      const p = players.get(pid);
+      if (p?.socketId && p.tableId === t.id) io.to(p.socketId).emit('table:react', { seat, emoji, id: Date.now() + Math.random() });
+    }
   });
 
   socket.on('disconnect', () => {

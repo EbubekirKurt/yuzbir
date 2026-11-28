@@ -157,7 +157,18 @@ export interface TableView {
   status: 'waiting' | 'playing';
   game: GameView | null;
   nextHandIn: number | null;
+  chat: ChatMessage[];
 }
+
+export interface ChatMessage {
+  id: number;
+  seat: number;
+  name: string;
+  text: string;
+  at: number;
+}
+
+export const REACTIONS = ['👏', '😂', '😮', '😡', '😭', '🔥', '👍', '🤝'] as const;
 
 export interface LobbyTable {
   id: string;

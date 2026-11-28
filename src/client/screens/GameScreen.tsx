@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react';
 import { analyzePair, analyzeSet, extendMeld, isIslek } from '../../shared/melds';
 import { face, faceName, handValue, isJoker, sameFace, tileName } from '../../shared/tiles';
-import type { Face, GameAction, GameView, TableMeld, TableView, Tile } from '../../shared/types';
+import { REACTIONS, type Face, type GameAction, type GameView, type TableMeld, type TableView, type Tile } from '../../shared/types';
 import { arrangeCift, arrangeSeri, layoutSlots, ROW, slotBlocks, sortTiles } from '../arrange';
 import { Avatar } from '../components/Avatar';
 import { FitBox } from '../components/FitBox';
@@ -21,6 +21,12 @@ const SEAT_XY = [
   { x: 1527, y: 440 }, // sağ
   { x: 840, y: 121 }, // üst
   { x: 115, y: 440 }, // sol
+];
+const BUBBLE_POS: React.CSSProperties[] = [
+  { left: 40, top: 700 }, // ben: kartımın üstü
+  { left: 1440, top: 300 }, // sağ
+  { left: 760, top: 166 }, // üst: kartın altı
+  { left: 30, top: 300 }, // sol
 ];
 const PILE_XY = [
   { x: 1370, y: 676 }, // benim attığım (sağ alt)
@@ -106,6 +112,42 @@ export function GameScreen({ table }: { table: TableView }) {
   // Ses efektleri ve sıra bildirimi
   const soundPrevRef = useRef<GameView | null>(null);
   const [notifyOn, setNotifyOn] = useState(notifyEnabled());
+
+  // ---------- tepkiler ve sohbet ----------
+  const [bubbles, setBubbles] = useState<Record<number, { id: number; text: string; emoji: boolean }>>({});
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [logTab, setLogTab] = useState<'log' | 'chat'>('log');
+  const [chatDraft, setChatDraft] = useState('');
+  const lastChatSeen = useRef(table.chat[table.chat.length - 1]?.id ?? 0);
+  const lastChatBubbled = useRef(lastChatSeen.current);
+  const showBubble = (seat: number, text: string, emoji: boolean) => {
+    const id = Date.now() + Math.random();
+    setBubbles((b) => ({ ...b, [seat]: { id, text, emoji } }));
+    setTimeout(() => setBubbles((b) => (b[seat]?.id === id ? (({ [seat]: _, ...rest }) => rest)(b) : b)), emoji ? 2800 : 4500);
+  };
+  useEffect(() => {
+    const onReact = (e: { seat: number; emoji: string }) => showBubble(e.seat, e.emoji, true);
+    socket.on('table:react', onReact);
+    return () => {
+      socket.off('table:react', onReact);
+    };
+  }, []);
+  useEffect(() => {
+    const fresh = table.chat.filter((m) => m.id > lastChatBubbled.current);
+    if (!fresh.length) return;
+    lastChatBubbled.current = fresh[fresh.length - 1].id;
+    for (const m of fresh) showBubble(m.seat, m.text.length > 60 ? `${m.text.slice(0, 57)}…` : m.text, false);
+  }, [table.chat]);
+  useEffect(() => {
+    if (logTab === 'chat') lastChatSeen.current = table.chat[table.chat.length - 1]?.id ?? 0;
+  }, [logTab, table.chat]);
+  const unread = logTab === 'chat' ? 0 : table.chat.filter((m) => m.id > lastChatSeen.current && m.seat !== table.mySeat).length;
+  const sendChat = () => {
+    const text = chatDraft.trim();
+    if (!text) return;
+    socket.emit('table:chat', { text });
+    setChatDraft('');
+  };
   useEffect(() => {
     const prev = soundPrevRef.current;
     soundPrevRef.current = g;
@@ -646,6 +688,16 @@ export function GameScreen({ table }: { table: TableView }) {
               )}
             </div>
           </div>
+          <button
+            type="button"
+            className="react-btn"
+            aria-label="Tepki gönder"
+            aria-expanded={pickerOpen}
+            title="Tepki gönder"
+            onClick={() => setPickerOpen((o) => !o)}
+          >
+            😊
+          </button>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
             <span style={{ fontWeight: 900, fontSize: 19, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mine.name}</span>
             <span className={`st ${opened ? 'open' : ''}`}>
@@ -750,12 +802,40 @@ export function GameScreen({ table }: { table: TableView }) {
       </div>
 
       <div className="card log-card">
-        <h2>Masa akışı</h2>
-        <div className="log-list">
-          {[...g.log].reverse().map((l) => (
-            <div key={l.id} className={`log-item ${l.warn ? 'warn' : ''}`}>{l.text}</div>
-          ))}
+        <div className="log-tabs" role="tablist" aria-label="Masa akışı ve sohbet">
+          <button type="button" role="tab" aria-selected={logTab === 'log'} onClick={() => setLogTab('log')}>Masa akışı</button>
+          <button type="button" role="tab" aria-selected={logTab === 'chat'} onClick={() => setLogTab('chat')}>
+            Sohbet{unread > 0 && <span className="unread" aria-label={`${unread} okunmamış`}>{unread}</span>}
+          </button>
         </div>
+        {logTab === 'log' ? (
+          <div className="log-list">
+            {[...g.log].reverse().map((l) => (
+              <div key={l.id} className={`log-item ${l.warn ? 'warn' : ''}`}>{l.text}</div>
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="log-list" aria-live="polite">
+              {table.chat.length === 0 && <div className="hint">Henüz mesaj yok. İlk mesajı sen yaz!</div>}
+              {[...table.chat].reverse().map((m) => (
+                <div key={m.id} className={`log-item chat ${m.seat === table.mySeat ? 'mine' : ''}`}>
+                  <b>{m.seat === table.mySeat ? 'Sen' : m.name}:</b> {m.text}
+                </div>
+              ))}
+            </div>
+            <form
+              className="chat-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendChat();
+              }}
+            >
+              <input className="input" value={chatDraft} maxLength={120} placeholder="Mesaj yaz…" aria-label="Sohbet mesajı" onChange={(e) => setChatDraft(e.target.value)} />
+              <button className="btn small primary" type="submit" disabled={!chatDraft.trim()}>Gönder</button>
+            </form>
+          </>
+        )}
       </div>
       </div>
 
@@ -796,6 +876,39 @@ export function GameScreen({ table }: { table: TableView }) {
       {drag && dragTile && (
         <div className="drag-ghost" style={{ left: drag.x - 29, top: drag.y - 40 }} aria-hidden="true">
           <TileView tile={dragTile} okey={okey} white={okeyWhite && isJoker(dragTile, okey)} />
+        </div>
+      )}
+
+      {Object.entries(bubbles).map(([seat, b]) => (
+        <div
+          key={b.id}
+          className={`bubble ${b.emoji ? 'emoji' : ''}`}
+          style={BUBBLE_POS[rel(Number(seat))]}
+          role="status"
+        >
+          {b.emoji ? b.text : (
+            <>
+              <b>{Number(seat) === me ? 'Sen' : g.players[Number(seat)]?.name}:</b> {b.text}
+            </>
+          )}
+        </div>
+      ))}
+
+      {pickerOpen && (
+        <div className="react-picker" role="group" aria-label="Tepkiler">
+          {REACTIONS.map((e) => (
+            <button
+              key={e}
+              type="button"
+              aria-label={`${e} tepkisi gönder`}
+              onClick={() => {
+                socket.emit('table:react', { emoji: e });
+                setPickerOpen(false);
+              }}
+            >
+              {e}
+            </button>
+          ))}
         </div>
       )}
 

@@ -1,7 +1,7 @@
 // Masalar: oturma, bot, oyun başlatma, süre sayacı ve otomatik oynama.
 import { randomUUID } from 'node:crypto';
 import { Game, type GameSnapshot } from '../shared/game';
-import type { GameAction, LobbyTable, Settings, TablePeek, TableView } from '../shared/types';
+import type { ChatMessage, GameAction, LobbyTable, Settings, TablePeek, TableView } from '../shared/types';
 import { deleteTableSnapshot, saveGame, saveTableSnapshot } from './db';
 import { sendOrQueue } from './discord';
 
@@ -30,6 +30,7 @@ export interface TableSnapshot {
   startedAt: string | null;
   resultSaved: boolean;
   game: GameSnapshot | null;
+  chat?: ChatMessage[];
 }
 
 export class Table {
@@ -50,6 +51,30 @@ export class Table {
   private persistedGame: Game | null = null;
   private restoredAt: number | null = null;
   private saveTimer: NodeJS.Timeout | null = null;
+  chat: ChatMessage[] = [];
+  private chatId = 0;
+  private lastTalk = new Map<string, number>();
+
+  /** Masa sohbeti: en fazla 120 karakter, kişi başı saniyede bir mesaj, son 50 mesaj tutulur. */
+  addChat(playerId: string, raw: unknown): ChatMessage | string {
+    const seat = this.seatOf(playerId);
+    if (seat < 0) return 'Bu masada oturmuyorsun.';
+    const text = String(raw ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (!text) return 'Boş mesaj gönderilemez.';
+    if (this.tooFast(playerId, 900)) return 'Biraz yavaş: çok hızlı mesaj gönderiyorsun.';
+    const msg = { id: ++this.chatId, seat, name: this.seats[seat]!.name, text, at: Date.now() };
+    this.chat.push(msg);
+    if (this.chat.length > 50) this.chat.shift();
+    return msg;
+  }
+
+  /** Aynı oyuncudan çok sık gelen tepki/mesajları engeller. */
+  tooFast(playerId: string, ms: number) {
+    const now = Date.now();
+    if (now - (this.lastTalk.get(playerId) ?? 0) < ms) return true;
+    this.lastTalk.set(playerId, now);
+    return false;
+  }
 
   constructor(
     name: string,
@@ -74,6 +99,7 @@ export class Table {
       startedAt: this.startedAt?.toISOString() ?? null,
       resultSaved: !!this.game && this.persistedGame === this.game,
       game: this.game?.snapshot() ?? null,
+      chat: this.chat,
     };
   }
 
@@ -83,6 +109,8 @@ export class Table {
     // Herkes yeniden bağlanana kadar "bağlantı koptu" görünür.
     t.seats = s.seats.map((seat) => (seat ? { ...seat, connected: !!seat.isBot } : null));
     t.startedAt = s.startedAt ? new Date(s.startedAt) : null;
+    t.chat = s.chat ?? [];
+    t.chatId = t.chat.reduce((m, c) => Math.max(m, c.id), 0);
     t.game = s.game ? Game.restore(s.game) : null;
     if (t.game && s.resultSaved) t.persistedGame = t.game;
     t.restoredAt = Date.now();
@@ -350,6 +378,7 @@ export class Table {
       ),
       status: this.status,
       nextHandIn: this.nextHandAt ? Math.max(0, this.nextHandAt - Date.now()) : null,
+      chat: this.chat.slice(-40),
       game:
         g && mySeat >= 0
           ? g.view(mySeat, {
