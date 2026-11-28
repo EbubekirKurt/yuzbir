@@ -266,6 +266,7 @@ Windows'ta testler `c:\` yerine büyük harfli `C:\` yolundan çalıştırılmal
 **Discord:** Masa bitince sonuçlar bir Discord kanalına kart (embed) olarak gönderilir: kazanan, sıralama, el el puan tablosu, öne çıkanlar (en çok bitiren, baraj, en çok ceza) ve masa ayarları.
 - Bot ile: `DISCORD_BOT_TOKEN` ve `DISCORD_CHANNEL_ID` doldurulur. Botun o kanalda *Kanalı Görüntüle*, *Mesaj Gönder* ve *Bağlantı Yerleştir* izinleri olmalıdır. `SITE_URL` verilirse mesaja "Yeni masa kur" butonu eklenir.
 - Webhook ile: Kanal ayarları → Entegrasyonlar → Webhook'tan alınan adres `DISCORD_WEBHOOK_URL` olarak girilir.
+- Her oyun sonucu veritabanına "Discord'a gönderilmedi" olarak kaydedilir ve hemen gönderilmeye çalışılır. Gönderilemezse (ayar eksik, Discord hatası, sunucu yeniden başladı) bir zamanlayıcı **5 dakikada bir** son 24 saatte biten gönderilmemiş sonuçları yeniden dener (en fazla 20 deneme). Aralık `DISCORD_RETRY_MINUTES` ile değiştirilebilir.
 - `npm run discord:test` örnek bir sonucu kanala gönderir (ayar yoksa mesajı ekrana yazar).
 
 ## 13. Canlıya alma

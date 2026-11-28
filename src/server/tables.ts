@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { Game } from '../shared/game';
 import type { GameAction, LobbyTable, Settings, TablePeek, TableView } from '../shared/types';
 import { saveGame } from './db';
-import { postGameResult } from './discord';
+import { sendOrQueue } from './discord';
 
 export interface Seat {
   playerId: string | null; // bot ise null
@@ -33,6 +33,7 @@ export class Table {
   nextHandAt: number | null = null;
   emptySince: number | null = null;
   startedAt: Date | null = null;
+  private persistedGame: Game | null = null;
 
   constructor(
     name: string,
@@ -179,8 +180,10 @@ export class Table {
           this.onChange(this);
         }, NEXT_HAND_MS);
       }
-      if (g.phase === 'gameOver' && this.turnKey !== 'over') {
-        this.turnKey = 'over';
+      // Her oyunun sonucu tek bir kez kaydedilir ve Discord'a gönderilir
+      // (oyun bittikten sonraki bağlantı kopması vb. olaylar tekrar tetiklemesin).
+      if (g.phase === 'gameOver' && this.persistedGame !== g) {
+        this.persistedGame = g;
         void this.persistResult();
       }
       return;
@@ -212,16 +215,7 @@ export class Table {
     const g = this.game;
     if (!g) return;
     const finishedAt = new Date();
-    void postGameResult({
-      tableName: this.name,
-      settings: this.settings,
-      players: this.seats.map((s) => ({ name: s?.name ?? '?', isBot: !!s?.isBot })),
-      history: g.history,
-      totals: g.totals(),
-      startedAt: this.startedAt,
-      finishedAt,
-    });
-    await saveGame({
+    const savedId = await saveGame({
       tableId: this.id,
       tableName: this.name,
       settings: this.settings,
@@ -233,8 +227,23 @@ export class Table {
       })),
       history: g.history,
       totals: g.totals(),
+      startedAt: this.startedAt,
       finishedAt,
+      discordPostedAt: null,
+      discordAttempts: 0,
     });
+    await sendOrQueue(
+      {
+        tableName: this.name,
+        settings: this.settings,
+        players: this.seats.map((s) => ({ name: s?.name ?? '?', isBot: !!s?.isBot })),
+        history: g.history,
+        totals: g.totals(),
+        startedAt: this.startedAt,
+        finishedAt,
+      },
+      savedId,
+    );
   }
 
   dispose() {

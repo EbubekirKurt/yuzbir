@@ -24,6 +24,7 @@ import {
   type User,
 } from './auth';
 import { connectDb, dbReady, recentGames } from './db';
+import { startDiscordScheduler } from './discord';
 import { sanitizeSettings, Table } from './tables';
 
 try {
@@ -372,6 +373,7 @@ setInterval(() => {
 
 const db = await connectDb();
 await initAuth(db, !!process.env.MONGODB_URI);
+startDiscordScheduler();
 httpServer.listen(PORT, () => {
   console.log(`Yüzbir sunucusu http://localhost:${PORT} adresinde çalışıyor.`);
 });

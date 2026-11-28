@@ -50,5 +50,6 @@ if (!discordConfigured()) {
   console.log('Discord ayarı yok (DISCORD_BOT_TOKEN + DISCORD_CHANNEL_ID ya da DISCORD_WEBHOOK_URL). Gönderilecek mesaj:\n');
   console.log(JSON.stringify(buildResultMessage(summary, process.env.SITE_URL), null, 2));
 } else {
-  await postGameResult(summary);
+  const res = await postGameResult(summary);
+  if (!res.ok) process.exitCode = 1;
 }

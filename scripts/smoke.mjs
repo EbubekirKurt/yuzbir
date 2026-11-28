@@ -1,8 +1,10 @@
 // Hızlı uçtan uca deneme: hesap açar, 1 oyuncu + 3 bot ile masa kurar, oyuncu her tur çekip atar.
-// Kullanım: önce sunucuyu başlat, sonra `node scripts/smoke.mjs [url]`
+// Kullanım: önce sunucuyu başlat, sonra `node scripts/smoke.mjs [url] [--full]`
+// --full: 5 elin hepsini oynar (oyun sonu kaydı ve Discord gönderimini de dener).
 import { io } from 'socket.io-client';
 
-const url = process.argv[2] ?? 'http://localhost:3001';
+const full = process.argv.includes('--full');
+const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:3001';
 const username = 'deneme_' + Date.now().toString(36);
 const res = await fetch(`${url}/api/register`, {
   method: 'POST',
@@ -46,7 +48,7 @@ socket.on('table', (t) => {
     seenHands = g.history.length;
     const h = g.history[seenHands - 1];
     console.log(`El ${h.handNo} bitti (${h.finishLabel}):`, h.rows.map((r) => `${g.players[r.seat].name}=${r.total}`).join(', '));
-    if (seenHands >= 2) {
+    if (full ? g.phase === 'gameOver' : seenHands >= 2) {
       console.log('Toplam:', g.totals.join(', '), `· ${((Date.now() - started) / 1000).toFixed(0)} sn`);
       process.exit(0);
     }
@@ -60,6 +62,6 @@ socket.on('table', (t) => {
 });
 
 setTimeout(() => {
-  console.error('Zaman aşımı: 2 el 120 sn içinde bitmedi.');
+  console.error('Zaman aşımı: oyun beklenen sürede bitmedi.');
   process.exit(1);
-}, 120_000);
+}, full ? 400_000 : 120_000);

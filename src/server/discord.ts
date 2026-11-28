@@ -2,6 +2,7 @@
 // İki yol: DISCORD_BOT_TOKEN + DISCORD_CHANNEL_ID (bot) ya da DISCORD_WEBHOOK_URL (webhook).
 // İkisi de yoksa hiçbir şey gönderilmez.
 import type { HandResult, Settings } from '../shared/types';
+import { dbReady, markDiscordResult, pendingDiscordGames, type SavedGame } from './db';
 
 export interface GameSummary {
   tableName: string;
@@ -168,24 +169,91 @@ export function discordConfigured() {
   return !!(process.env.DISCORD_WEBHOOK_URL || (process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_CHANNEL_ID));
 }
 
-export async function postGameResult(s: GameSummary): Promise<void> {
+export type SendResult = { ok: true } | { ok: false; error: string; skipped?: boolean };
+
+/** Sonucu gönderir; hata fırlatmaz, sonucu döner. */
+export async function postGameResult(s: GameSummary): Promise<SendResult> {
   const siteUrl = process.env.SITE_URL || undefined;
   const message = buildResultMessage(s, siteUrl);
+  const token = process.env.DISCORD_BOT_TOKEN;
+  const channel = process.env.DISCORD_CHANNEL_ID;
+  const webhook = process.env.DISCORD_WEBHOOK_URL;
+  if (!(token && channel) && !webhook) {
+    console.warn(`[discord] Ayar yok (DISCORD_BOT_TOKEN + DISCORD_CHANNEL_ID ya da DISCORD_WEBHOOK_URL); "${s.tableName}" sonucu gönderilmedi.`);
+    return { ok: false, error: 'Discord ayarı yok', skipped: true };
+  }
   try {
-    const token = process.env.DISCORD_BOT_TOKEN;
-    const channel = process.env.DISCORD_CHANNEL_ID;
     if (token && channel) {
       const components = siteUrl
         ? [{ type: 1, components: [{ type: 2, style: 5, label: 'Yeni masa kur', url: siteUrl }] }]
         : undefined;
       await post(`https://discord.com/api/v10/channels/${channel}/messages`, { Authorization: `Bot ${token}` }, { ...message, components });
-    } else if (process.env.DISCORD_WEBHOOK_URL) {
-      await post(process.env.DISCORD_WEBHOOK_URL, {}, { ...message, username: 'Yüzbir' });
     } else {
-      return;
+      await post(webhook!, {}, { ...message, username: 'Yüzbir' });
     }
     console.log(`[discord] "${s.tableName}" sonucu gönderildi.`);
+    return { ok: true };
   } catch (err) {
-    console.error('[discord] sonuç gönderilemedi:', (err as Error).message);
+    const error = (err as Error).message;
+    console.error(`[discord] "${s.tableName}" sonucu gönderilemedi:`, error);
+    return { ok: false, error };
   }
+}
+
+// ---------- gönderim kuyruğu ve zamanlayıcı ----------
+
+/** Veritabanı yokken gönderilemeyen sonuçlar (sunucu yeniden başlarsa kaybolur). */
+const memoryQueue: { summary: GameSummary; attempts: number }[] = [];
+
+function summaryFromSaved(g: SavedGame): GameSummary {
+  return {
+    tableName: g.tableName,
+    settings: g.settings,
+    players: g.players.map((p) => ({ name: p.name, isBot: p.isBot })),
+    history: g.history,
+    totals: g.totals,
+    startedAt: g.startedAt ?? null,
+    finishedAt: g.finishedAt,
+  };
+}
+
+/** Oyun bitince: hemen gönder, olmazsa kuyrukta kalsın (zamanlayıcı yeniden dener). */
+export async function sendOrQueue(summary: GameSummary, savedId: import('mongodb').ObjectId | null) {
+  const res = await postGameResult(summary);
+  if (savedId) await markDiscordResult(savedId, res.ok, res.ok ? undefined : res.error);
+  else if (!res.ok && !dbReady()) memoryQueue.push({ summary, attempts: 1 });
+}
+
+let running = false;
+
+export async function flushDiscordQueue() {
+  if (running || !discordConfigured()) return;
+  running = true;
+  try {
+    for (const g of await pendingDiscordGames()) {
+      const res = await postGameResult(summaryFromSaved(g));
+      await markDiscordResult(g._id as unknown as import('mongodb').ObjectId, res.ok, res.ok ? undefined : res.error);
+    }
+    for (let i = memoryQueue.length - 1; i >= 0; i--) {
+      const item = memoryQueue[i];
+      const res = await postGameResult(item.summary);
+      if (res.ok || ++item.attempts >= 20) memoryQueue.splice(i, 1);
+    }
+  } catch (err) {
+    console.error('[discord] kuyruk işlenemedi:', (err as Error).message);
+  } finally {
+    running = false;
+  }
+}
+
+/** Belirli aralıklarla gönderilmemiş sonuçları yeniden dener (varsayılan 5 dakika). */
+export function startDiscordScheduler() {
+  const minutes = Math.min(60, Math.max(1, Number(process.env.DISCORD_RETRY_MINUTES) || 5));
+  if (!discordConfigured()) {
+    console.warn('[discord] Ayar yok: masa sonuçları Discord\'a gönderilmeyecek. (DISCORD_BOT_TOKEN + DISCORD_CHANNEL_ID ya da DISCORD_WEBHOOK_URL)');
+  } else {
+    console.log(`[discord] Sonuç gönderimi açık; gönderilemeyenler ${minutes} dakikada bir yeniden denenecek.`);
+  }
+  setTimeout(() => void flushDiscordQueue(), 15_000); // açılışta bekleyenleri gönder
+  setInterval(() => void flushDiscordQueue(), minutes * 60_000);
 }
