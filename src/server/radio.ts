@@ -98,6 +98,7 @@ async function load(): Promise<RadioCategory[]> {
         seenUrl.add(s.url_resolved);
         stations.push({
           id: s.stationuuid,
+          kind: 'stream',
           name: name.slice(0, 48),
           url: s.url_resolved,
           favicon: s.favicon?.startsWith('https://') ? s.favicon : null,
@@ -113,9 +114,36 @@ async function load(): Promise<RadioCategory[]> {
   return out;
 }
 
+/**
+ * Sanatçı kanalları: resmi YouTube oynatma listeleri.
+ * RADIO_YOUTUBE_CHANNELS="Ad|playlistId;Ad 2|playlistId2" ile değiştirilebilir.
+ */
+const DEFAULT_YOUTUBE = 'Manifest|PLN9sAeoGw4Fh12V2ruXxiIUTQIBz1yZjc';
+
+function youtubeCategory(): RadioCategory | null {
+  const raw = process.env.RADIO_YOUTUBE_CHANNELS ?? DEFAULT_YOUTUBE;
+  const stations: RadioStation[] = raw
+    .split(';')
+    .map((part) => part.split('|').map((x) => x.trim()))
+    .filter(([name, id]) => name && id && /^[A-Za-z0-9_-]{10,64}$/.test(id))
+    .map(([name, id]) => ({
+      id: `yt-${id}`,
+      kind: 'youtube' as const,
+      playlistId: id,
+      name: name.slice(0, 48),
+      url: `https://www.youtube.com/playlist?list=${id}`,
+      favicon: null,
+      country: 'YouTube',
+      bitrate: null,
+    }));
+  return stations.length ? { id: 'sanatci', name: 'Sanatçılar', stations } : null;
+}
+
 /** Kategoriler ve kanalları (önbellekli). Dizine ulaşılamazsa eski önbellek döner. */
 export async function radioCategories(): Promise<RadioCategory[]> {
-  if (cache && Date.now() - cache.at < CACHE_MS) return cache.data;
+  const yt = youtubeCategory();
+  const withYt = (data: RadioCategory[]) => (yt ? [yt, ...data] : data);
+  if (cache && Date.now() - cache.at < CACHE_MS) return withYt(cache.data);
   loading ??= load()
     .then((data) => {
       if (data.length) cache = { at: Date.now(), data };
@@ -124,5 +152,5 @@ export async function radioCategories(): Promise<RadioCategory[]> {
     .finally(() => {
       loading = null;
     });
-  return loading;
+  return withYt(await loading);
 }

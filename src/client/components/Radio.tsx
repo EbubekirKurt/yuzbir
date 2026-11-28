@@ -25,6 +25,48 @@ function writeSaved(s: Saved) {
   }
 }
 
+// ---------- YouTube IFrame API ----------
+
+interface YTPlayer {
+  playVideo(): void;
+  pauseVideo(): void;
+  nextVideo(): void;
+  setVolume(v: number): void;
+  setShuffle(s: boolean): void;
+  setLoop(l: boolean): void;
+  getVideoData(): { title?: string };
+  destroy(): void;
+}
+
+declare global {
+  interface Window {
+    YT?: { Player: new (el: HTMLElement, opts: unknown) => YTPlayer };
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
+let ytApi: Promise<NonNullable<Window['YT']>> | null = null;
+
+function loadYouTubeApi() {
+  ytApi ??= new Promise((resolve, reject) => {
+    if (window.YT?.Player) return resolve(window.YT);
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      prev?.();
+      resolve(window.YT!);
+    };
+    const s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    s.async = true;
+    s.onerror = () => {
+      ytApi = null;
+      reject(new Error('YouTube oynatıcısı yüklenemedi.'));
+    };
+    document.head.appendChild(s);
+  });
+  return ytApi;
+}
+
 function RadioIcon() {
   return (
     <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
@@ -36,10 +78,12 @@ function RadioIcon() {
   );
 }
 
-/** Oyun boyunca açık kalan radyo: kategori ve kanal seçimi, sonraki kanal, ses. */
+/** Oyun boyunca açık kalan radyo: kategori ve kanal seçimi, sonraki kanal/şarkı, ses. */
 export function Radio() {
   const saved = useRef(readSaved());
   const audio = useRef<HTMLAudioElement | null>(null);
+  const ytHost = useRef<HTMLDivElement | null>(null);
+  const yt = useRef<YTPlayer | null>(null);
   const [open, setOpen] = useState(false);
   const [cats, setCats] = useState<RadioCategory[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -49,9 +93,13 @@ export function Radio() {
   const [buffering, setBuffering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [volume, setVolume] = useState(saved.current.volume ?? 0.6);
+  const [ytActive, setYtActive] = useState(false);
+  const [songTitle, setSongTitle] = useState<string | null>(null);
   const failCount = useRef(0);
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
 
-  // Ses öğesi bir kez oluşturulur; ekran değişse de çalmaya devam eder.
+  // Radyo yayını için ses öğesi bir kez oluşturulur; ekran değişse de çalmaya devam eder.
   useEffect(() => {
     const a = new Audio();
     a.preload = 'none';
@@ -77,6 +125,7 @@ export function Radio() {
 
   useEffect(() => {
     if (audio.current) audio.current.volume = volume;
+    yt.current?.setVolume(Math.round(volume * 100));
     writeSaved({ categoryId: catId, stationId: station?.id ?? saved.current.stationId, volume });
   }, [volume, catId, station]);
 
@@ -98,7 +147,74 @@ export function Radio() {
 
   const category = cats?.find((c) => c.id === catId) ?? cats?.[0];
 
+  const stopStream = () => {
+    const a = audio.current;
+    if (!a) return;
+    a.pause();
+    a.removeAttribute('src'); // canlı yayını durdurunca bağlantıyı da kapat
+    a.load();
+  };
+
+  const stopYouTube = () => {
+    yt.current?.destroy();
+    yt.current = null;
+    setYtActive(false);
+    setSongTitle(null);
+  };
+
+  const playYouTube = async (st: RadioStation) => {
+    stopStream();
+    setStation(st);
+    setError(null);
+    setBuffering(true);
+    setYtActive(true);
+    try {
+      const YT = await loadYouTubeApi();
+      yt.current?.destroy();
+      // Oynatıcı kutusu görünür olmalı (YouTube kuralı); React her seferinde yeni bir alt öğe verir.
+      const host = ytHost.current;
+      if (!host) return;
+      host.innerHTML = '';
+      const el = document.createElement('div');
+      host.appendChild(el);
+      yt.current = new YT.Player(el, {
+        width: '100%',
+        height: '100%',
+        playerVars: { listType: 'playlist', list: st.playlistId, autoplay: 1, playsinline: 1, rel: 0, modestbranding: 1 },
+        events: {
+          onReady: (e: { target: YTPlayer }) => {
+            e.target.setVolume(Math.round(volumeRef.current * 100));
+            e.target.setShuffle(true);
+            e.target.setLoop(true);
+            e.target.nextVideo(); // karıştırılmış listeden başla
+            e.target.playVideo();
+          },
+          onStateChange: (e: { data: number; target: YTPlayer }) => {
+            // 1: çalıyor, 2: duraklatıldı, 3: yükleniyor, 0: bitti
+            if (e.data === 1) {
+              setPlaying(true);
+              setBuffering(false);
+              setSongTitle(e.target.getVideoData().title ?? null);
+            } else if (e.data === 2 || e.data === 0) setPlaying(false);
+            else if (e.data === 3) setBuffering(true);
+          },
+          onError: (e: { target: YTPlayer }) => {
+            // Gömülü oynatmaya kapalı ya da kaldırılmış video: sonrakine geç.
+            setError('Bu şarkı oynatılamadı, sonrakine geçiliyor.');
+            e.target.nextVideo();
+          },
+        },
+      });
+    } catch (err) {
+      setBuffering(false);
+      setYtActive(false);
+      setError((err as Error).message);
+    }
+  };
+
   const play = (st: RadioStation) => {
+    if (st.kind === 'youtube') return void playYouTube(st);
+    stopYouTube();
     const a = audio.current;
     if (!a) return;
     setStation(st);
@@ -117,6 +233,10 @@ export function Radio() {
   };
 
   const nextFrom = (current: RadioStation | null) => {
+    if (current?.kind === 'youtube' && yt.current) {
+      yt.current.nextVideo();
+      return;
+    }
     const list = category?.stations ?? [];
     if (!list.length) return;
     const i = current ? list.findIndex((s) => s.id === current.id) : -1;
@@ -124,25 +244,34 @@ export function Radio() {
   };
 
   const toggle = () => {
-    const a = audio.current;
-    if (!a) return;
-    if (playing) {
-      a.pause();
-      a.removeAttribute('src'); // canlı yayını durdurunca bağlantıyı da kapat
-      a.load();
+    if (station?.kind === 'youtube' && yt.current) {
+      if (playing) yt.current.pauseVideo();
+      else yt.current.playVideo();
+      return;
+    }
+    if (playing || buffering) {
+      stopStream();
       setBuffering(false);
     } else if (station) play(station);
     else if (category) play(category.stations[0]);
   };
 
+  const closeYouTube = () => {
+    stopYouTube();
+    setPlaying(false);
+    setBuffering(false);
+  };
+
   // Medya tuşları ve işletim sistemi oynatıcısında kanal adı
   useEffect(() => {
-    if (!('mediaSession' in navigator) || !station) return;
+    if (!('mediaSession' in navigator) || !station || station.kind === 'youtube') return;
     navigator.mediaSession.metadata = new MediaMetadata({ title: station.name, artist: `Yüzbir Radyo · ${category?.name ?? ''}` });
     navigator.mediaSession.setActionHandler('nexttrack', () => nextFrom(station));
   }, [station, category]);
 
+  const isYt = station?.kind === 'youtube';
   const status = error ?? (buffering ? 'Bağlanıyor…' : playing ? 'Çalıyor' : station ? 'Durduruldu' : 'Kanal seç');
+  const nowName = isYt && songTitle ? songTitle : station?.name ?? '—';
 
   return (
     <>
@@ -151,12 +280,26 @@ export function Radio() {
         className={`radio-toggle ${playing ? 'on' : ''}`}
         aria-label={open ? 'Radyoyu kapat' : 'Radyoyu aç'}
         aria-expanded={open}
-        title={station && playing ? `Radyo: ${station.name}` : 'Radyo'}
+        title={station && playing ? `Radyo: ${nowName}` : 'Radyo'}
         onClick={() => setOpen((o) => !o)}
       >
         <RadioIcon />
         {playing && <span className="radio-dot" aria-hidden="true" />}
       </button>
+
+      {/* YouTube kanalı çalarken görünür oynatıcı (YouTube kuralı: en az 200×200) */}
+      <div className="yt-mini" hidden={!ytActive} aria-label="YouTube oynatıcısı">
+        <div className="yt-mini-head">
+          <span className="yt-mini-title">{station?.name ?? ''} · YouTube</span>
+          <button type="button" className="yt-mini-btn" aria-label="Sonraki şarkı" title="Sonraki şarkı" onClick={() => yt.current?.nextVideo()}>
+            ⏭
+          </button>
+          <button type="button" className="yt-mini-btn" aria-label="Kapat" title="Kapat" onClick={closeYouTube}>
+            ×
+          </button>
+        </div>
+        <div ref={ytHost} className="yt-mini-video" />
+      </div>
 
       {open && (
         <div className="radio-panel" role="dialog" aria-label="Radyo">
@@ -187,20 +330,29 @@ export function Radio() {
                     <li key={s.id}>
                       <button type="button" className={`radio-station ${active ? 'active' : ''}`} aria-current={active} onClick={() => play(s)}>
                         <span className="radio-fav" aria-hidden="true">
-                          {s.favicon ? <img src={s.favicon} alt="" width={22} height={22} loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')} /> : null}
+                          {s.kind === 'youtube' ? (
+                            <svg width="22" height="22" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="5" fill="#e8453c" /><path d="M10 8.5v7l6-3.5z" fill="#fff" /></svg>
+                          ) : s.favicon ? (
+                            <img src={s.favicon} alt="" width={22} height={22} loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                          ) : null}
                         </span>
                         <span className="radio-name">{s.name}</span>
-                        <span className="radio-meta">{s.country}{s.bitrate ? ` · ${s.bitrate}k` : ''}</span>
+                        <span className="radio-meta">{s.kind === 'youtube' ? 'Resmi klipler' : `${s.country}${s.bitrate ? ` · ${s.bitrate}k` : ''}`}</span>
                       </button>
                     </li>
                   );
                 })}
               </ul>
+              {category.stations.some((s) => s.kind === 'youtube') && (
+                <div className="radio-msg" style={{ fontSize: 12 }}>
+                  Sanatçı kanalları resmi YouTube kanalındaki klipleri karışık çalar; çalarken sol kenarda küçük bir video kutusu görünür.
+                </div>
+              )}
             </>
           )}
 
           <div className="radio-now" role="status" aria-live="polite">
-            <span className="radio-now-name">{station?.name ?? '—'}</span>
+            <span className="radio-now-name">{nowName}</span>
             <span className={`radio-now-status ${error ? 'error' : ''}`}>{status}</span>
           </div>
 
@@ -209,7 +361,7 @@ export function Radio() {
               {playing || buffering ? 'Durdur' : 'Çal'}
             </button>
             <button type="button" className="btn small" onClick={() => nextFrom(station)} disabled={!category}>
-              Sonraki kanal
+              {isYt ? 'Sonraki şarkı' : 'Sonraki kanal'}
             </button>
             <label className="radio-vol">
               <span className="sr-only">Ses</span>
@@ -220,7 +372,7 @@ export function Radio() {
               <input type="range" min={0} max={1} step={0.05} value={volume} aria-label="Ses düzeyi" onChange={(e) => setVolume(Number(e.target.value))} />
             </label>
           </div>
-          <div className="radio-credit">Kanallar: radio-browser.info</div>
+          <div className="radio-credit">Kanallar: radio-browser.info · Sanatçılar: YouTube</div>
         </div>
       )}
     </>
