@@ -104,7 +104,7 @@ export function AuthScreen({ onAuthed, invited }: { onAuthed: (me: Me) => void; 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <label className="label" htmlFor="email">E-posta</label>
                   <input id="email" className="input" type="email" autoComplete="email" value={email} maxLength={254} onChange={(e) => setEmail(e.target.value)} />
-                  <span className="hint">Şifreni unutursan sıfırlamak için. Doğrulama linki göndereceğiz; kimseye gösterilmez.</span>
+                  <span className="hint">Şifreni unutursan sıfırlamak için. Doğrulama linki göndereceğiz; kimseye gösterilmez. <a href="/gizlilik.html" target="_blank" rel="noopener" style={{ color: 'inherit' }}>Gizlilik politikası</a></span>
                 </div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
