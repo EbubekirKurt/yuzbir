@@ -143,7 +143,9 @@ export function buildResultMessage(s: GameSummary, siteUrl?: string, withImage =
       })
       .join('\n'),
   });
-  if (!withImage) fields.push({ name: 'El el puanlar', value: scoreTable(s).slice(0, 1024) });
+  const table = scoreTable(s);
+  // Çok elli oyunda metin tablosu Discord sınırını (1024) aşarsa eklenmez; görüntüde tamamı var.
+  if (!withImage && table.length <= 1024) fields.push({ name: 'El el puanlar', value: table });
   const hl = highlights(s);
   if (hl.length) fields.push({ name: 'Öne çıkanlar', value: hl.join('\n').slice(0, 1024) });
 

@@ -32,7 +32,9 @@ export function ScoreModal(props: {
   ];
   const tab = tabs.some((t) => t.id === props.tab) ? props.tab : 'genel';
   const ranks = ranking(g.totals);
-  const handCols = `170px repeat(${g.totalHands}, minmax(0, 1fr)) 140px 100px`;
+  const manyHands = g.totalHands > 11;
+  const handCols = `170px repeat(${g.totalHands}, minmax(${manyHands ? 58 : 0}px, 1fr)) 140px 100px`;
+  const rowMinWidth = manyHands ? 170 + g.totalHands * 58 + 240 + 36 : undefined;
   const detailCols = '150px 130px 130px 110px 100px 120px minmax(0, 1fr) 100px 130px';
   const esli = props.settings.mode === 'esli';
 
@@ -69,8 +71,8 @@ export function ScoreModal(props: {
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
             {tab === 'genel' && (
               <>
-                <div className="grid-table" role="table" aria-label="Genel puan durumu">
-                  <div className="grid-row head r" role="row" style={{ gridTemplateColumns: handCols }}>
+                <div className="grid-table" role="table" aria-label="Genel puan durumu" style={{ overflowX: manyHands ? 'auto' : 'hidden' }}>
+                  <div className="grid-row head r" role="row" style={{ gridTemplateColumns: handCols, minWidth: rowMinWidth }}>
                     <span role="columnheader" style={{ textAlign: 'left' }}>Oyuncu</span>
                     {Array.from({ length: g.totalHands }, (_, i) => (
                       <span key={i} role="columnheader">El {i + 1}</span>
@@ -79,7 +81,7 @@ export function ScoreModal(props: {
                     <span role="columnheader" style={{ textAlign: 'center' }}>Sıra</span>
                   </div>
                   {names.map((n, seat) => (
-                    <div key={seat} className={`grid-row r ${ranks[seat] === 1 ? 'win' : ''}`} role="row" style={{ gridTemplateColumns: handCols, minHeight: 66, fontSize: 18 }}>
+                    <div key={seat} className={`grid-row r ${ranks[seat] === 1 ? 'win' : ''}`} role="row" style={{ gridTemplateColumns: handCols, minHeight: 66, fontSize: 18, minWidth: rowMinWidth }}>
                       <span role="rowheader" style={{ textAlign: 'left', fontWeight: 900 }}>
                         {n}
                         {seat === g.you ? ' (sen)' : ''}

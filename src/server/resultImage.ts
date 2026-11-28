@@ -24,7 +24,9 @@ const C = {
 };
 const RANK_BG = ['#FFD23F', '#E3E3E3', '#F0B98A', '#F1E4CF'];
 const TEAM_COLOR = ['#FFB23F', '#7FB8FF']; // takım şeritleri
-const WIDTH = 1280;
+const BASE_WIDTH = 1280;
+/** 11'den fazla elde her el sütunu için yer açılır. */
+const widthFor = (hands: number) => Math.max(BASE_WIDTH, 556 + 8 + hands * 62);
 const NUNITO = "'Nunito', 'Nunito Ext'";
 const BALOO = "'Baloo 2', 'Baloo 2 Ext', 'Nunito Ext'";
 
@@ -81,7 +83,7 @@ export function winnerText(s: GameSummary): string {
   return winners.length > 1 ? `berabere (${winners.join(', ')})` : winners[0];
 }
 
-function layout(s: GameSummary): { tree: Node; height: number } {
+function layout(s: GameSummary): { tree: Node; height: number; width: number } {
   const r = ranks(s.totals);
   const hands = Math.max(s.settings.hands, s.history.length);
   const esli = s.settings.mode === 'esli';
@@ -201,7 +203,7 @@ function layout(s: GameSummary): { tree: Node; height: number } {
   const tree = h(
     'div',
     {
-      width: WIDTH,
+      width: widthFor(hands),
       height,
       flexDirection: 'column',
       background: C.panel,
@@ -229,13 +231,14 @@ function layout(s: GameSummary): { tree: Node; height: number } {
       h('div', { marginTop: 'auto', fontFamily: NUNITO, fontWeight: 700, fontSize: 15, color: C.soft }, 'Puanı düşük olan önde · Yüzbir · 101 Okey'),
     ),
   );
-  return { tree, height };
+  return { tree, height, width: widthFor(hands) };
 }
 
 /** Oyun sonu tablosunun PNG görüntüsü (1.5x çözünürlük). */
 export async function renderResultImage(s: GameSummary): Promise<Buffer> {
-  const { tree, height } = layout(s);
-  const svg = await satori(tree as never, { width: WIDTH, height, fonts: fonts() });
-  const png = new Resvg(svg, { fitTo: { mode: 'width', value: Math.round(WIDTH * 1.5) }, background: 'rgba(0,0,0,0)' }).render().asPng();
+  const { tree, height, width } = layout(s);
+  const svg = await satori(tree as never, { width, height, fonts: fonts() });
+  const scale = width > 1600 ? 1 : 1.5; // çok geniş tabloda dosya boyutu büyümesin
+  const png = new Resvg(svg, { fitTo: { mode: 'width', value: Math.round(width * scale) }, background: 'rgba(0,0,0,0)' }).render().asPng();
   return Buffer.from(png);
 }

@@ -10,7 +10,7 @@ Masayı kuran kişi şunları seçer:
 
 | Ayar | Seçenekler |
 |---|---|
-| El sayısı | 5 / 7 / 9 / 11 |
+| El sayısı | 1-11 arası hazır seçenekler ya da "Diğer" ile elle (en fazla 33) |
 | Oyun tipi | Tekli / Eşli (2'ye 2) |
 | Açma modu | Katlamalı / Katlamasız |
 | Eşe katlama (sadece eşli + katlamalı) | Evet / Hayır |

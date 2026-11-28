@@ -151,6 +151,10 @@ button:disabled { cursor: not-allowed; }
   box-shadow: 0 5px 0 var(--outline);
   font-family: 'Baloo 2', sans-serif; font-weight: 700; font-size: 20px; cursor: pointer;
 }
+.pill-group.compact { gap: 8px; align-items: center; }
+.pill-group.compact .pill { min-width: 48px; height: 46px; padding: 0 12px; font-size: 19px; }
+.tabs { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 8px; }
+.tabs .pill { flex-shrink: 0; }
 .pill[aria-pressed='true'] { background: var(--orange); box-shadow: 0 2px 0 var(--outline); transform: translateY(3px); }
 
 .label { font-weight: 900; font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--label); }

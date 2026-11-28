@@ -1,4 +1,6 @@
 import { useState } from 'react';
+
+const MAX_HANDS = 33;
 import type { Settings } from '../../shared/types';
 import { Logo } from '../components/Stage';
 import { socket } from '../socket';
@@ -54,7 +56,12 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
     turnSeconds: 45,
     islekUyari: true,
   });
-  const set = (patch: Partial<Settings>) => setS((p) => ({ ...p, ...patch }));
+  const set = (patch: Partial<Settings>) => {
+    setS((p) => ({ ...p, ...patch }));
+    if (patch.hands !== undefined) setHandsText(String(patch.hands));
+  };
+  const [customHands, setCustomHands] = useState(false);
+  const [handsText, setHandsText] = useState('9');
   const esli = s.mode === 'esli';
 
   return (
@@ -121,15 +128,59 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
                 </div>
               )}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 24 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
                 <span className="label">El sayısı</span>
-                <Pills label="El sayısı" value={s.hands} options={[5, 7, 9, 11].map((v) => ({ v, l: String(v) }))} onChange={(hands) => set({ hands })} />
+                <span className="hint">1-11 ya da "Diğer" ile en fazla {MAX_HANDS}</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <span className="label">Hamle süresi</span>
-                <Pills label="Hamle süresi" value={s.turnSeconds} options={[30, 45, 60].map((v) => ({ v, l: `${v} sn` }))} onChange={(turnSeconds) => set({ turnSeconds })} />
+              <div className="pill-group compact" role="group" aria-label="El sayısı">
+                {Array.from({ length: 11 }, (_, i) => i + 1).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    className="pill"
+                    aria-pressed={!customHands && s.hands === v}
+                    onClick={() => {
+                      setCustomHands(false);
+                      set({ hands: v });
+                    }}
+                  >
+                    {v}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="pill"
+                  aria-pressed={customHands}
+                  onClick={() => {
+                    setCustomHands(true);
+                    if (s.hands <= 11) set({ hands: 12 });
+                  }}
+                >
+                  Diğer
+                </button>
+                {customHands && (
+                  <input
+                    className="input"
+                    type="number"
+                    min={1}
+                    max={MAX_HANDS}
+                    aria-label={`El sayısı (1-${MAX_HANDS})`}
+                    style={{ width: 96, height: 46 }}
+                    value={handsText}
+                    onChange={(e) => {
+                      setHandsText(e.target.value);
+                      const n = Number(e.target.value);
+                      if (Number.isInteger(n) && n >= 1 && n <= MAX_HANDS) set({ hands: n });
+                    }}
+                    onBlur={() => setHandsText(String(s.hands))}
+                  />
+                )}
               </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span className="label">Hamle süresi</span>
+              <Pills label="Hamle süresi" value={s.turnSeconds} options={[30, 45, 60].map((v) => ({ v, l: `${v} sn` }))} onChange={(turnSeconds) => set({ turnSeconds })} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>

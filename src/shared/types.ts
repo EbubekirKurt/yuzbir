@@ -32,7 +32,7 @@ export interface Settings {
   mode: GameMode;
   katlamali: boolean;
   esKatlama: boolean; // sadece eşli + katlamalı modda anlamlı
-  hands: number; // 5 / 7 / 9 / 11
+  hands: number; // 1-33
   turnSeconds: number; // 30 / 45 / 60
   /** İşlek taş ya da okey atmadan önce onay sorulsun mu (eski masalarda tanımsız = açık) */
   islekUyari?: boolean;
