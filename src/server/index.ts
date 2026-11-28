@@ -23,10 +23,10 @@ import {
   userFromToken,
   type User,
 } from './auth';
-import { connectDb, dbReady, recentGames } from './db';
+import { connectDb, dbReady, loadTableSnapshots, recentGames } from './db';
 import { startDiscordScheduler } from './discord';
 import { radioCategories } from './radio';
-import { sanitizeSettings, Table } from './tables';
+import { sanitizeSettings, Table, type TableSnapshot } from './tables';
 
 try {
   process.loadEnvFile();
@@ -205,6 +205,7 @@ if (existsSync(clientDir)) {
 // ---------- oyun (Socket.IO) ----------
 
 function broadcastTable(t: Table) {
+  t.persistSoon();
   for (const pid of t.humanIds()) {
     const p = players.get(pid);
     if (p?.socketId && p.tableId === t.id) io.to(p.socketId).emit('table', t.viewFor(pid));
@@ -215,14 +216,48 @@ function broadcastLobby() {
   io.to('lobby').emit('lobby', [...tables.values()].map((t) => t.lobbyInfo()));
 }
 
+const onTableChange = (tbl: Table) => {
+  broadcastTable(tbl);
+  broadcastLobby();
+};
+
 function createTable(name: string, settings: Settings, hostId: string) {
-  const t = new Table(name, settings, hostId, (tbl) => {
-    broadcastTable(tbl);
-    broadcastLobby();
-  });
+  const t = new Table(name, settings, hostId, onTableChange);
   tables.set(t.id, t);
   return t;
 }
+
+/** Sunucu açılırken kayıtlı masaları geri yükler; oyuncular yeniden bağlanınca koltuklarına döner. */
+async function restoreTables() {
+  const snaps = await loadTableSnapshots<TableSnapshot>();
+  for (const s of snaps) {
+    try {
+      const t = Table.restore(s, onTableChange);
+      tables.set(t.id, t);
+      for (const seat of t.seats) {
+        if (seat && !seat.isBot && seat.playerId) {
+          players.set(seat.playerId, { playerId: seat.playerId, name: seat.name, avatar: seat.avatar, socketId: null, tableId: t.id });
+        }
+      }
+      t.schedule();
+    } catch (err) {
+      console.error(`[masa] ${s.id} geri yüklenemedi:`, (err as Error).message);
+    }
+  }
+  if (snaps.length) console.log(`[masa] ${tables.size} masa geri yüklendi.`);
+}
+
+// Render yeniden başlatmadan önce SIGTERM gönderir: son durumu kaydet.
+let shuttingDown = false;
+async function shutdown(signal: string) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[sunucu] ${signal} alındı, masalar kaydediliyor…`);
+  await Promise.allSettled([...tables.values()].map((t) => t.persistNow()));
+  process.exit(0);
+}
+process.on('SIGTERM', () => void shutdown('SIGTERM'));
+process.on('SIGINT', () => void shutdown('SIGINT'));
 
 function leaveCurrentTable(p: PlayerInfo) {
   if (!p.tableId) return;
@@ -382,6 +417,7 @@ setInterval(() => {
 
 const db = await connectDb();
 await initAuth(db, !!process.env.MONGODB_URI);
+await restoreTables();
 startDiscordScheduler();
 httpServer.listen(PORT, () => {
   console.log(`Yüzbir sunucusu http://localhost:${PORT} adresinde çalışıyor.`);

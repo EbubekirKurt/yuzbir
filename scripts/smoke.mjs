@@ -24,11 +24,16 @@ let seenHands = 0;
 let acted = '';
 let setup = false;
 
+let everConnected = false;
 socket.on('connect_error', (e) => {
+  // Sunucu yeniden başlarken bağlantı hataları beklenir; ilk bağlantı hiç kurulamazsa çık.
+  if (everConnected) return console.log('[yeniden bağlanılıyor]', e.message);
   console.error('Bağlantı hatası:', e.message);
   process.exit(1);
 });
 socket.on('connect', () => {
+  if (everConnected) return console.log('[yeniden bağlandı]');
+  everConnected = true;
   socket.emit('table:create', { name: 'Smoke', settings: { mode: 'tekli', katlamali: true, hands: 5, turnSeconds: 30 } });
 });
 socket.on('toast', (m) => console.log('[toast]', m));

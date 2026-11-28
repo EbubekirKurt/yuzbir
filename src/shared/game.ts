@@ -37,6 +37,31 @@ export interface PlayerState {
 
 export type Result = { ok: true; info?: string } | { ok: false; error: string };
 
+export interface GameSnapshot {
+  settings: Settings;
+  names: string[];
+  bots: boolean[];
+  handNo: number;
+  starter: number;
+  history: HandResult[];
+  deck: Tile[];
+  gosterge: Tile;
+  okey: Face;
+  players: PlayerState[];
+  piles: Tile[][];
+  table: TableMeld[];
+  openings: Opening[];
+  turn: number;
+  phase: Phase;
+  pendingLeft: { tile: Tile; from: number } | null;
+  extendCount: Record<string, number>;
+  discardCount: number;
+  deckEmptyBy: number | null;
+  log: LogEntry[];
+  logId: number;
+  meldId: number;
+}
+
 const ok = (info?: string): Result => ({ ok: true, info });
 const fail = (error: string): Result => ({ ok: false, error });
 
@@ -73,8 +98,8 @@ export class Game {
   discardCount = 0;
   deckEmptyBy: number | null = null; // destenin son taşını çeken
   log: LogEntry[] = [];
-  private logId = 0;
-  private meldId = 0;
+  logId = 0;
+  meldId = 0;
 
   constructor(settings: Settings, names: string[], bots: boolean[], starter = 0, rng = Math.random) {
     this.settings = settings;
@@ -82,6 +107,44 @@ export class Game {
     this.bots = bots;
     this.starter = starter;
     this.rng = rng;
+  }
+
+  // ---------- kalıcılık (sunucu yeniden başlayınca oyun devam etsin) ----------
+
+  /** Oyunun tam durumu, JSON olarak saklanabilir. */
+  snapshot(): GameSnapshot {
+    return JSON.parse(
+      JSON.stringify({
+        settings: this.settings,
+        names: this.names,
+        bots: this.bots,
+        handNo: this.handNo,
+        starter: this.starter,
+        history: this.history,
+        deck: this.deck,
+        gosterge: this.gosterge,
+        okey: this.okey,
+        players: this.players,
+        piles: this.piles,
+        table: this.table,
+        openings: this.openings,
+        turn: this.turn,
+        phase: this.phase,
+        pendingLeft: this.pendingLeft,
+        extendCount: this.extendCount,
+        discardCount: this.discardCount,
+        deckEmptyBy: this.deckEmptyBy,
+        log: this.log,
+        logId: this.logId,
+        meldId: this.meldId,
+      }),
+    );
+  }
+
+  static restore(s: GameSnapshot): Game {
+    const g = new Game(s.settings, s.names, s.bots, s.starter);
+    Object.assign(g, s);
+    return g;
   }
 
   // ---------- yardımcılar ----------

@@ -1,8 +1,8 @@
 // Masalar: oturma, bot, oyun başlatma, süre sayacı ve otomatik oynama.
 import { randomUUID } from 'node:crypto';
-import { Game } from '../shared/game';
+import { Game, type GameSnapshot } from '../shared/game';
 import type { GameAction, LobbyTable, Settings, TablePeek, TableView } from '../shared/types';
-import { saveGame } from './db';
+import { deleteTableSnapshot, saveGame, saveTableSnapshot } from './db';
 import { sendOrQueue } from './discord';
 
 export interface Seat {
@@ -17,6 +17,20 @@ const BOT_DELAY_MS = 1100;
 const FIRST_BOT_MOVE_MS = 6000;
 const DISCONNECTED_TURN_MS = 10_000;
 const NEXT_HAND_MS = 12_000;
+/** Sunucu yeniden başladıktan sonra oyunculara yeniden bağlanmaları için tanınan süre. */
+const RESTORE_GRACE_MS = 120_000;
+const SAVE_DEBOUNCE_MS = 800;
+
+export interface TableSnapshot {
+  id: string;
+  name: string;
+  settings: Settings;
+  hostId: string;
+  seats: (Seat | null)[];
+  startedAt: string | null;
+  resultSaved: boolean;
+  game: GameSnapshot | null;
+}
 
 export class Table {
   id = randomUUID().slice(0, 6);
@@ -34,6 +48,8 @@ export class Table {
   emptySince: number | null = null;
   startedAt: Date | null = null;
   private persistedGame: Game | null = null;
+  private restoredAt: number | null = null;
+  private saveTimer: NodeJS.Timeout | null = null;
 
   constructor(
     name: string,
@@ -44,6 +60,49 @@ export class Table {
     this.name = name;
     this.settings = settings;
     this.hostId = hostId;
+  }
+
+  // ---------- kalıcılık ----------
+
+  snapshot(): TableSnapshot {
+    return {
+      id: this.id,
+      name: this.name,
+      settings: this.settings,
+      hostId: this.hostId,
+      seats: this.seats,
+      startedAt: this.startedAt?.toISOString() ?? null,
+      resultSaved: !!this.game && this.persistedGame === this.game,
+      game: this.game?.snapshot() ?? null,
+    };
+  }
+
+  static restore(s: TableSnapshot, onChange: (t: Table) => void): Table {
+    const t = new Table(s.name, s.settings, s.hostId, onChange);
+    t.id = s.id;
+    // Herkes yeniden bağlanana kadar "bağlantı koptu" görünür.
+    t.seats = s.seats.map((seat) => (seat ? { ...seat, connected: !!seat.isBot } : null));
+    t.startedAt = s.startedAt ? new Date(s.startedAt) : null;
+    t.game = s.game ? Game.restore(s.game) : null;
+    if (t.game && s.resultSaved) t.persistedGame = t.game;
+    t.restoredAt = Date.now();
+    t.emptySince = Date.now();
+    return t;
+  }
+
+  /** Durumu kısa bir gecikmeyle veritabanına yazar (art arda hamlelerde tek yazma). */
+  persistSoon() {
+    if (this.saveTimer) return;
+    this.saveTimer = setTimeout(() => {
+      this.saveTimer = null;
+      void saveTableSnapshot(this.id, this.snapshot());
+    }, SAVE_DEBOUNCE_MS);
+  }
+
+  async persistNow() {
+    if (this.saveTimer) clearTimeout(this.saveTimer);
+    this.saveTimer = null;
+    await saveTableSnapshot(this.id, this.snapshot());
   }
 
   get status(): 'waiting' | 'playing' {
@@ -197,7 +256,8 @@ export class Table {
     let ms: number;
     // Botun eldeki ilk hamlesi gecikir: diğer oyuncuların göstergeyi bildirmeye vakti olsun.
     if (seat.isBot) ms = g.discardCount === 0 ? FIRST_BOT_MOVE_MS : BOT_DELAY_MS;
-    else if (!seat.connected) ms = Math.min(DISCONNECTED_TURN_MS, this.settings.turnSeconds * 1000);
+    else if (!seat.connected && !(this.restoredAt && Date.now() - this.restoredAt < RESTORE_GRACE_MS))
+      ms = Math.min(DISCONNECTED_TURN_MS, this.settings.turnSeconds * 1000);
     else ms = this.settings.turnSeconds * 1000;
     this.deadline = seat.isBot ? null : Date.now() + ms;
     const turnAtSchedule = key;
@@ -246,8 +306,12 @@ export class Table {
     );
   }
 
+  /** Masa kapanınca: zamanlayıcıları durdurur ve kaydını siler. */
   dispose() {
     this.clearTimers();
+    if (this.saveTimer) clearTimeout(this.saveTimer);
+    this.saveTimer = null;
+    void deleteTableSnapshot(this.id);
   }
 
   // ---------- görünümler ----------

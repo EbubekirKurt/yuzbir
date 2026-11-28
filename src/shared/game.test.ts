@@ -440,3 +440,26 @@ describe('gösterge sadece çiftle açanda', () => {
     expect(g.lay(0, [[gost.id]]).ok).toBe(false);
   });
 });
+
+describe('kalıcılık', () => {
+  it('oyun ortasında anlık görüntüden geri yüklenen oyun kaldığı yerden devam eder', () => {
+    const g = new Game({ ...SOLO, hands: 3 }, ['A', 'B', 'C', 'D'], [true, true, true, true]);
+    g.startHand();
+    for (let i = 0; i < 25; i++) g.autoPlay(g.turn);
+    const snap = JSON.parse(JSON.stringify(g.snapshot())); // veritabanından okunmuş gibi
+    const r = Game.restore(snap);
+    expect(r.turn).toBe(g.turn);
+    expect(r.deck.length).toBe(g.deck.length);
+    expect(r.players.map((p) => p.hand.length)).toEqual(g.players.map((p) => p.hand.length));
+    expect(r.view(0, { names: r.names, bots: r.bots, connected: [true, true, true, true], avatars: [null, null, null, null], deadlineIn: null }).hand).toEqual(g.players[0].hand);
+    let guard = 0;
+    while (r.phase !== 'gameOver' && guard++ < 10000) {
+      if (r.phase === 'handEnd') r.nextHand();
+      else r.autoPlay(r.turn);
+    }
+    expect(r.phase).toBe('gameOver');
+    expect(r.history).toHaveLength(3);
+    // Kimlik numaraları çakışmasın diye sayaçlar da geri gelir
+    expect(r.logId).toBeGreaterThan(0);
+  });
+});

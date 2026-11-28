@@ -90,6 +90,36 @@ export async function markDiscordResult(id: ObjectId, ok: boolean, error?: strin
   }
 }
 
+// ---------- açık masaların anlık görüntüleri (sunucu yeniden başlayınca geri yüklenir) ----------
+
+export async function saveTableSnapshot(id: string, data: unknown) {
+  if (!db) return;
+  try {
+    await db
+      .collection<{ _id: string }>('tables')
+      .updateOne({ _id: id }, { $set: { data, updatedAt: new Date() } }, { upsert: true });
+  } catch (err) {
+    console.error('[db] masa kaydedilemedi:', (err as Error).message);
+  }
+}
+
+export async function deleteTableSnapshot(id: string) {
+  if (!db) return;
+  try {
+    await db.collection<{ _id: string }>('tables').deleteOne({ _id: id });
+  } catch (err) {
+    console.error('[db] masa kaydı silinemedi:', (err as Error).message);
+  }
+}
+
+/** Son 24 saatte güncellenmiş masalar. */
+export async function loadTableSnapshots<T>(): Promise<T[]> {
+  if (!db) return [];
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const docs = await db.collection<{ _id: string; data: T; updatedAt: Date }>('tables').find({ updatedAt: { $gte: since } }).toArray();
+  return docs.map((d) => d.data);
+}
+
 export async function recentGames(playerId: string, limit = 10) {
   if (!db) return [];
   return db
