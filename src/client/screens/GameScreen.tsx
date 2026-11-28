@@ -271,13 +271,52 @@ export function GameScreen({ table }: { table: TableView }) {
   const swapTarget = (m: TableMeld, idx: number) =>
     canWorkTable && !!selectedTile && !(m.kind === 'group' && m.tiles.length < 4) && isJoker(m.tiles[idx], okey) && !isJoker(selectedTile, okey) && sameFace(face(selectedTile, okey), m.reps[idx]);
 
+  // Otomatik işleme: taş seçili değilken, eldeki taşlarla işlenebilecek yerler kendiliğinden yanar.
+  // Okey otomatik önerilmez (bilerek seçilip kullanılmalı).
+  const autoMode = canPlay && !!opened && !selectedTile && g.hand.length >= 2;
+  const autoCandidate = (m: TableMeld, side: 'start' | 'end'): Tile | null => {
+    if (!autoMode || m.kind === 'pair' || (m.kind === 'group' && side === 'start')) return null;
+    if ((g.extendCount[`${m.id}:${side}`] ?? 0) >= 2) return null;
+    return (
+      g.hand.find((t) => {
+        if (isJoker(t, okey)) return false;
+        const e = extendMeld(m, t, okey, side);
+        return !!e && e.side === side;
+      }) ?? null
+    );
+  };
+  const autoSwap = (m: TableMeld, idx: number): Tile | null => {
+    if (!autoMode || (m.kind === 'group' && m.tiles.length < 4) || !isJoker(m.tiles[idx], okey)) return null;
+    return g.hand.find((t) => !isJoker(t, okey) && sameFace(face(t, okey), m.reps[idx])) ?? null;
+  };
+  const ghost = (m: TableMeld, side: 'start' | 'end') => {
+    const c = autoCandidate(m, side);
+    if (!c) return null;
+    return (
+      <TileView
+        tile={c}
+        okey={okey}
+        size="sm"
+        ghost
+        label={`${tileName(c)} taşını ${side === 'start' ? 'başa' : 'sona'} işle`}
+        onClick={() => act({ type: 'extend', tileId: c.id, meldId: m.id, side })}
+      />
+    );
+  };
+
   const renderMeld = (m: TableMeld) => (
     <div key={m.id} className="meld-row">
       {m.kind === 'run' && plusFor(m, 'start') && (
         <button className="plus" aria-label="Başa işle" onClick={() => act({ type: 'extend', tileId: selected!, meldId: m.id, side: 'start' })}>+</button>
       )}
-      {m.tiles.map((t, i) =>
-        swapTarget(m, i) ? (
+      {m.kind === 'run' && ghost(m, 'start')}
+      {m.tiles.map((t, i) => {
+        const swapWith = autoSwap(m, i);
+        if (swapWith)
+          return (
+            <TileView key={t.id} tile={t} okey={okey} white size="sm" target label={`${tileName(swapWith)} ile okeyi al`} onClick={() => act({ type: 'swapOkey', tileId: swapWith.id, meldId: m.id, pos: i })} />
+          );
+        return swapTarget(m, i) ? (
           <TileView key={t.id} tile={t} okey={okey} white size="sm" target label="Okeyi al" onClick={() => act({ type: 'swapOkey', tileId: selected!, meldId: m.id, pos: i })} />
         ) : (
           <TileView
@@ -288,13 +327,17 @@ export function GameScreen({ table }: { table: TableView }) {
             white={isJoker(t, okey)}
             label={isJoker(t, okey) ? `okey, ${faceName(m.reps[i])} yerine` : undefined}
           />
-        ),
-      )}
+        );
+      })}
+      {m.kind !== 'pair' && ghost(m, 'end')}
       {(m.kind !== 'pair' || isLoneGosterge(m)) && plusFor(m, 'end') && (
         <button className="plus" aria-label="Sona işle" onClick={() => act({ type: 'extend', tileId: selected!, meldId: m.id, side: 'end' })}>+</button>
       )}
     </div>
   );
+  const autoSpots = autoMode
+    ? g.table.reduce((n, m) => n + (autoCandidate(m, 'start') ? 1 : 0) + (autoCandidate(m, 'end') ? 1 : 0) + m.tiles.filter((_, i) => autoSwap(m, i)).length, 0)
+    : 0;
 
   // Bütün perler masaya açılış sırasıyla alt alta eklenir; alan dolunca sağdaki sütuna geçer.
   const ZONE_ROWS = 7; // 424px yüksekliğe 50px'lik 7 sıra sığar
@@ -312,6 +355,7 @@ export function GameScreen({ table }: { table: TableView }) {
   else if (g.phase === 'draw') hint = 'Sıra sende · Desteden çek ya da soldan al';
   else if (g.deckCount === 0) hint = 'Destenin son taşını çektin · Taşını atınca el biter';
   else if (g.pendingLeftId !== null) hint = 'Soldan aldığın taşla aç ya da geri koy';
+  else if (autoSpots) hint = `Masada ${autoSpots} yer yanıyor · Tıklayarak elindeki taşı işle`;
   else if (opened && layable.length) hint = `Istakanda ${layable.length} yeni per var · "Perleri indir" ile masaya koy`;
   else hint = opened ? 'İşle, per indir ya da taşını at' : 'Aç ya da bir taş seçip at';
 

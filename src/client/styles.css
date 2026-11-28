@@ -338,6 +338,15 @@ button.tile { cursor: pointer; }
 .actions .btn { height: 52px; font-size: 18px; padding: 0 8px; }
 .actions .wide { grid-column: span 2; }
 
+/* ---------- otomatik işleme: yanan yer ---------- */
+.tile.ghost {
+  opacity: .62; cursor: pointer;
+  outline: 3px dashed var(--yellow); outline-offset: 1px;
+  animation: ghost-pulse 1.4s ease-in-out infinite;
+}
+.tile.ghost:hover, .tile.ghost:focus-visible { opacity: 1; animation: none; }
+@keyframes ghost-pulse { 50% { opacity: .9; outline-color: #fff3b0; } }
+
 /* ---------- sürüklenen taş ---------- */
 .drag-ghost { position: absolute; z-index: 40; pointer-events: none; transform: rotate(-4deg) scale(1.08); }
 .drag-ghost .tile { box-shadow: 0 5px 0 var(--tile-edge), 0 14px 24px rgba(40, 28, 16, .35); }
