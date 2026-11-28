@@ -386,6 +386,57 @@ button.tile { cursor: pointer; }
 .okey-chip, .take-chip, .tile, .deck button, .log-item.warn, .pen { color: var(--on-accent); }
 .log-item, .toast, .grid-table, .owner-chip { color: var(--text); }
 
+/* ---------- radyo ---------- */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.radio-toggle {
+  position: fixed; left: calc(50% + 30px); top: 8px; z-index: 90;
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--text); border: 3px solid var(--outline); box-shadow: 0 4px 0 var(--outline); cursor: pointer;
+}
+.radio-toggle.on { background: var(--yellow); color: var(--on-accent); }
+.radio-toggle:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--outline); }
+.radio-dot {
+  position: absolute; right: -3px; top: -3px; width: 12px; height: 12px; border-radius: 50%;
+  background: #e8453c; border: 2px solid var(--outline); animation: radio-pulse 1.4s ease-in-out infinite;
+}
+@keyframes radio-pulse { 50% { transform: scale(.7); opacity: .6; } }
+.radio-panel {
+  position: fixed; left: 50%; top: 58px; transform: translateX(-50%); z-index: 95;
+  width: min(400px, calc(100vw - 24px)); max-height: calc(100vh - 72px); overflow: auto;
+  display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 10px;
+  background: var(--cream); color: var(--text); border: 3px solid var(--outline); border-radius: 18px; box-shadow: 0 6px 0 var(--outline), 0 18px 40px rgba(0, 0, 0, .25);
+}
+.radio-head { display: flex; align-items: center; justify-content: space-between; }
+.radio-head strong { font-size: 22px; }
+.radio-x { width: 32px; height: 32px; border-radius: 10px; border: 2px solid var(--outline); background: var(--surface); color: var(--text); font-size: 20px; line-height: 1; cursor: pointer; }
+.radio-cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.radio-cat {
+  height: 32px; padding: 0 10px; border-radius: 999px; border: 2px solid var(--outline); background: var(--surface); color: var(--text);
+  font-weight: 800; font-size: 13px; cursor: pointer;
+}
+.radio-cat[aria-pressed='true'] { background: var(--orange); color: var(--on-accent); }
+.radio-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 268px; overflow-y: auto; }
+.radio-station {
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px;
+  border: 2px solid transparent; background: var(--surface); color: var(--text); cursor: pointer; text-align: left;
+}
+.radio-station:hover { border-color: var(--line-strong); }
+.radio-station.active { border-color: var(--outline); background: var(--chip); color: var(--on-accent); }
+.radio-fav { width: 22px; height: 22px; flex-shrink: 0; border-radius: 6px; overflow: hidden; background: var(--sand); }
+.radio-fav img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.radio-name { flex: 1; min-width: 0; font-weight: 800; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.radio-meta { font-weight: 700; font-size: 12px; opacity: .75; flex-shrink: 0; }
+.radio-now { display: flex; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 2px solid var(--line); font-size: 14px; }
+.radio-now-name { font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.radio-now-status { font-weight: 700; color: var(--text-soft); flex-shrink: 0; }
+.radio-now-status.error, .radio-msg.error { color: var(--bad-text); }
+.radio-msg { font-weight: 700; font-size: 14px; }
+.radio-controls { display: flex; align-items: center; gap: 8px; }
+.radio-vol { margin-left: auto; display: flex; align-items: center; gap: 6px; color: var(--text); }
+.radio-vol input { width: 96px; accent-color: var(--orange); }
+.radio-credit { font-size: 11px; font-weight: 700; color: var(--text-soft); text-align: right; }
+
 /* ---------- tema düğmesi ---------- */
 .theme-toggle {
   position: fixed; left: 50%; top: 8px; transform: translateX(-50%); z-index: 90;

@@ -25,6 +25,7 @@ import {
 } from './auth';
 import { connectDb, dbReady, recentGames } from './db';
 import { startDiscordScheduler } from './discord';
+import { radioCategories } from './radio';
 import { sanitizeSettings, Table } from './tables';
 
 try {
@@ -177,6 +178,14 @@ app.get(
     const t = tables.get(String(req.params.id));
     if (!t) throw new AuthError('Masa bulunamadı. Masa kapanmış ya da link yanlış olabilir.', 404);
     res.json(t.peek());
+  }),
+);
+
+app.get(
+  '/api/radio',
+  route(async (_req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=600');
+    res.json(await radioCategories());
   }),
 );
 

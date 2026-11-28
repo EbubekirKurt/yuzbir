@@ -175,3 +175,18 @@ export type GameAction =
   | { type: 'swapOkey'; tileId: number; meldId: number; pos: number }
   | { type: 'discard'; tileId: number }
   | { type: 'declareGosterge' };
+
+export interface RadioStation {
+  id: string;
+  name: string;
+  url: string;
+  favicon: string | null;
+  country: string;
+  bitrate: number | null;
+}
+
+export interface RadioCategory {
+  id: string;
+  name: string;
+  stations: RadioStation[];
+}

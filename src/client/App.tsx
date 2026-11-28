@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { LobbyTable, Me, TableView } from '../shared/types';
 import { ProfileEditor } from './components/ProfileEditor';
+import { Radio } from './components/Radio';
 import { Logo, Stage } from './components/Stage';
 import { AuthScreen } from './screens/AuthScreen';
 import { CreateTable } from './screens/CreateTable';
@@ -179,6 +180,7 @@ export default function App() {
     <>
       <Stage>{screen}</Stage>
       <ThemeToggle />
+      <Radio />
       <div className="toasts" role="status" aria-live="polite">
         {authError && <div className="toast">{authError}</div>}
         {toasts.map((t) => (
