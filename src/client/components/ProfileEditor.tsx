@@ -97,3 +97,77 @@ export function ProfileEditor({ me, onChange }: { me: Me; onChange: (me: Me) => 
     </div>
   );
 }
+
+/** Profil sayfasında e-posta ekleme/değiştirme ve doğrulama durumu. */
+export function EmailSettings({ me, onChange }: { me: Me; onChange: (me: Me) => void }) {
+  const [email, setEmail] = useState(me.email ?? '');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  const changed = email.trim().toLowerCase() !== (me.email ?? '').toLowerCase();
+
+  const run = async (fn: () => Promise<string>) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      setMsg({ text: await fn() });
+    } catch (err) {
+      setMsg({ text: (err as Error).message, error: true });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveEmail = () =>
+    run(async () => {
+      const updated = await api.setEmail(email.trim());
+      onChange(updated);
+      setEmail(updated.email ?? '');
+      return updated.emailVerified ? 'E-postan kaydedildi.' : `${updated.email} adresine doğrulama linki gönderdik.`;
+    });
+
+  const resend = () =>
+    run(async () => {
+      const r = await api.resendVerification();
+      if (r.alreadyVerified) {
+        onChange(await api.me());
+        return 'E-postan zaten doğrulanmış.';
+      }
+      return 'Doğrulama linkini tekrar gönderdik. Gereksiz (spam) klasörüne de bak.';
+    });
+
+  return (
+    <form
+      style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (changed) saveEmail();
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <label className="label" htmlFor="profileEmail">E-posta</label>
+        {me.email && (
+          <span className={`chip ${me.emailVerified ? 'good' : 'warn'}`} style={{ fontSize: 13, height: 26 }}>
+            {me.emailVerified ? 'Doğrulandı' : 'Doğrulanmadı'}
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'flex', gap: 10 }}>
+        <input id="profileEmail" className="input" type="email" autoComplete="email" maxLength={254} value={email} placeholder="ornek@mail.com" onChange={(e) => setEmail(e.target.value)} />
+        <button className="btn primary" type="submit" disabled={busy || !email.trim() || !changed}>
+          Kaydet
+        </button>
+      </div>
+      <span className="hint">Şifreni unutursan sıfırlama linki bu adrese gelir. Kimseye gösterilmez.</span>
+      {me.email && !me.emailVerified && !changed && (
+        <button type="button" className="btn small" style={{ alignSelf: 'flex-start' }} disabled={busy} onClick={resend}>
+          Doğrulama linkini tekrar gönder
+        </button>
+      )}
+      {msg && (
+        <span role="status" style={{ fontWeight: 800, color: msg.error ? 'var(--bad-text)' : 'var(--good-text)' }}>
+          {msg.text}
+        </span>
+      )}
+    </form>
+  );
+}

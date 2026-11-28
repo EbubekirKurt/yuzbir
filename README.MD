@@ -203,10 +203,12 @@ Tam tablo:
 ## 10. Dijital oyun kuralları
 
 - **Platform:** Web, online çok oyunculu.
-- **Hesap zorunlu:** Oynamak için kullanıcı adı ve şifreyle hesap açılır (e-posta doğrulaması yok).
+- **Hesap zorunlu:** Oynamak için kullanıcı adı, e-posta ve şifreyle hesap açılır.
   - Kullanıcı adı 3-20 karakter (harf, rakam, nokta, alt çizgi), büyük-küçük harf farkı gözetmeden tekildir. Şifre en az 6 karakterdir.
   - Şifreler veritabanında scrypt ile, kullanıcıya özel rastgele salt kullanılarak hash'lenmiş olarak tutulur; düz şifre hiçbir yerde saklanmaz.
   - Oturum 30 gün geçerlidir ve `httpOnly` bir çerezde durur. Veritabanında oturum anahtarının yalnızca SHA-256 özeti tutulur.
+  - **E-posta:** Kayıtta zorunludur, bir adres yalnızca bir hesapta kullanılabilir ve başka oyunculara hiçbir zaman gösterilmez. Kayıttan sonra adrese doğrulama linki gider (`/dogrula/<anahtar>`, 48 saat geçerli); doğrulanana kadar oynamaya engel yoktur, lobide uyarı görünür. E-postası olmayan eski hesaplara lobide "e-posta ekle" uyarısı çıkar. Adres profil sayfasından değiştirilebilir; değişince yeniden doğrulanır, eski adrese giden linkler geçersizleşir. Doğrulama maili dakikada en fazla bir kez tekrar istenebilir.
+  - **Şifremi unuttum:** Giriş ekranındaki linkten e-posta yazılır; adres kayıtlıysa sıfırlama linki gider (`/sifre/<anahtar>`, 30 dakika geçerli, tek kullanımlık). Adres kayıtlı olsun olmasın aynı yanıt verilir. Yeni şifre kaydedilince o hesabın bütün oturumları kapanır ve oyuncu yeni oturumla giriş yapmış olur. Link anahtarlarının veritabanında yalnızca SHA-256 özeti tutulur (`email_tokens`, süresi dolan kendiliğinden silinir).
 - **Arkadaşlar:** Lobinin sağındaki panelden kullanıcı adıyla arkadaş isteği gönderilir; gelen istekler kabul/ret edilir, gönderilen istek geri çekilebilir, arkadaşlıktan çıkarılabilir. İki taraf birbirine istek gönderirse doğrudan arkadaş olunur (en fazla 100 arkadaş). Listede arkadaşın çevrimiçi mi, lobide mi, hangi masada olduğu görünür; bekleme salonundaki bir arkadaşın masasına **Katıl** ile gidilir.
 - **Davet:** Masa kurarken çevrimiçi arkadaşlar işaretlenir, masa kurulunca davet gider; bekleme salonunda da **Davet et** ile sonradan davet edilir. Davet edilen kişide köşede bir kart çıkar (**Katıl** → masaya katılma ekranı; 60 sn sonra kaybolur). Sunucu yalnızca kabul edilmiş arkadaşlara ve masada oturan kişinin davetine izin verir.
 - **Profil:** Her oyuncu profil fotoğrafı ve masada görünen adını değiştirebilir (lobide sağ üstteki adına tıklayarak ya da masaya katılma ekranında). Fotoğraf 192×192 JPEG'e küçültülerek saklanır.
@@ -284,5 +286,6 @@ Windows'ta testler `c:\` yerine büyük harfli `C:\` yolundan çalıştırılmal
 Tek bir Node servisi yeterlidir:
 - Kurulum: `npm install && npm run build`
 - Başlatma: `npm start`
-- Ortam değişkenleri: `MONGODB_URI`, `MONGODB_DB` (varsayılan `yuzbir`), `PORT` (platform verir), isteğe bağlı `SITE_URL`, `DISCORD_BOT_TOKEN` + `DISCORD_CHANNEL_ID` ya da `DISCORD_WEBHOOK_URL`
+- Ortam değişkenleri: `MONGODB_URI`, `MONGODB_DB` (varsayılan `yuzbir`), `PORT` (platform verir), `SITE_URL` (mail linkleri için ayarlanmalı), `DISCORD_BOT_TOKEN` + `DISCORD_CHANNEL_ID` ya da `DISCORD_WEBHOOK_URL`, `BREVO_API_KEY` + `MAIL_FROM` (+ isteğe bağlı `MAIL_FROM_NAME`)
+- **E-posta (Brevo):** Render'ın ücretsiz planı SMTP portlarını kapattığı için mailler Brevo'nun HTTPS API'siyle gönderilir (ücretsiz plan günde 300 mail). Brevo'da hesap aç → *Senders, Domains & Dedicated IPs* bölümünden gönderen adresini doğrula → *SMTP & API* → *API Keys* bölümünden anahtar oluştur. `BREVO_API_KEY` ve doğruladığın adresi `MAIL_FROM` olarak Render'a ekle. Bu ikisi yoksa mail gönderilmez, linkler sunucu günlüğüne yazılır (`[mail] … gönderilmedi`).
 - WebSocket desteği olan bir platform gerekir (ör. Render, Railway, Fly.io).

@@ -9,7 +9,7 @@ const username = 'deneme_' + Date.now().toString(36);
 const res = await fetch(`${url}/api/register`, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ username, password: 'deneme123' }),
+  body: JSON.stringify({ username, password: 'deneme123', email: `${username}@example.invalid` }),
 });
 if (!res.ok) {
   console.error('Kayıt başarısız:', res.status, await res.text());

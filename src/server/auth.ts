@@ -48,6 +48,9 @@ export interface User {
   createdAt: Date;
   /** Radyoda yıldızlanan istasyonların kimlikleri (eklenme sırasıyla). */
   radioFavorites: string[];
+  /** Şifre sıfırlama için; eski hesaplarda yok. Başkalarına hiçbir zaman gösterilmez. */
+  email: string | null;
+  emailVerified: boolean;
 }
 
 export interface PublicUser {
@@ -55,6 +58,21 @@ export interface PublicUser {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+}
+
+/** Sadece kullanıcının kendisine dönen bilgi (e-posta dahil). */
+export function selfUser(u: User) {
+  return { ...publicUser(u), email: u.email, emailVerified: u.emailVerified };
+}
+
+export type TokenKind = 'verify' | 'reset';
+interface EmailToken {
+  tokenHash: string;
+  userId: string;
+  kind: TokenKind;
+  /** Token hangi adres için üretildi; adres sonradan değişirse token geçersiz olur. */
+  email: string;
+  expiresAt: Date;
 }
 
 export function publicUser(u: User): PublicUser {
@@ -74,10 +92,16 @@ interface Store {
   findByUsername(username: string): Promise<User | null>;
   findById(id: string): Promise<User | null>;
   create(u: Omit<User, 'id'>): Promise<User>;
-  update(id: string, patch: Partial<Pick<User, 'displayName' | 'avatar' | 'avatarVersion' | 'radioFavorites'>>): Promise<User | null>;
+  findByEmail(email: string): Promise<User | null>;
+  update(id: string, patch: Partial<Omit<User, 'id' | 'username' | 'createdAt'>>): Promise<User | null>;
   createSession(userId: string, tokenHash: string, expiresAt: Date): Promise<void>;
   findSession(tokenHash: string): Promise<{ userId: string; expiresAt: Date } | null>;
   deleteSession(tokenHash: string): Promise<void>;
+  deleteUserSessions(userId: string): Promise<void>;
+  /** Aynı kullanıcının aynı türdeki eski token'larını siler, yenisini kaydeder. */
+  putToken(t: EmailToken): Promise<void>;
+  /** Token'ı bulur ve siler (tek kullanımlık). */
+  takeToken(tokenHash: string, kind: TokenKind): Promise<EmailToken | null>;
 }
 
 /** MONGODB_URI tanımlı değilse (yerel deneme) kullanılır; sunucu kapanınca hesaplar silinir. */
@@ -91,10 +115,29 @@ class MemoryStore implements Store {
   async findById(id: string) {
     return this.users.get(id) ?? null;
   }
+  async findByEmail(email: string) {
+    const lower = email.toLowerCase();
+    return [...this.users.values()].find((u) => u.email?.toLowerCase() === lower) ?? null;
+  }
   async create(u: Omit<User, 'id'>) {
+    if (u.email && (await this.findByEmail(u.email))) throw Object.assign(new Error('dup'), { code: 11000, keyPattern: { emailLower: 1 } });
     const user = { ...u, id: new ObjectId().toHexString() };
     this.users.set(user.id, user);
     return user;
+  }
+  private tokens = new Map<string, EmailToken>();
+  async deleteUserSessions(userId: string) {
+    for (const [k, s] of this.sessions) if (s.userId === userId) this.sessions.delete(k);
+  }
+  async putToken(t: EmailToken) {
+    for (const [k, x] of this.tokens) if (x.userId === t.userId && x.kind === t.kind) this.tokens.delete(k);
+    this.tokens.set(t.tokenHash, t);
+  }
+  async takeToken(tokenHash: string, kind: TokenKind) {
+    const t = this.tokens.get(tokenHash);
+    if (!t || t.kind !== kind) return null;
+    this.tokens.delete(tokenHash);
+    return t;
   }
   async update(id: string, patch: Partial<User>) {
     const u = this.users.get(id);
@@ -123,19 +166,45 @@ interface UserDoc {
   avatarVersion: number;
   createdAt: Date;
   radioFavorites?: string[];
+  email?: string | null;
+  /** Benzersizlik için küçük harfli kopya; e-postası olmayan hesaplarda alan hiç yok. */
+  emailLower?: string;
+  emailVerified?: boolean;
 }
 
 class MongoStore implements Store {
   private users: Collection<UserDoc>;
   private sessions: Collection<{ tokenHash: string; userId: string; expiresAt: Date; createdAt: Date }>;
+  private tokens: Collection<EmailToken>;
   constructor(db: Db) {
     this.users = db.collection('users');
     this.sessions = db.collection('sessions');
+    this.tokens = db.collection('email_tokens');
   }
   async init() {
     await this.users.createIndex({ usernameLower: 1 }, { unique: true });
+    // Aynı e-posta iki hesapta olmasın (e-postası olmayan eski hesaplar hariç)
+    await this.users.createIndex({ emailLower: 1 }, { unique: true, partialFilterExpression: { emailLower: { $type: 'string' } } });
     await this.sessions.createIndex({ tokenHash: 1 }, { unique: true });
     await this.sessions.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+    await this.sessions.createIndex({ userId: 1 });
+    await this.tokens.createIndex({ tokenHash: 1 }, { unique: true });
+    await this.tokens.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+    await this.tokens.createIndex({ userId: 1, kind: 1 });
+  }
+  async findByEmail(email: string) {
+    const d = await this.users.findOne({ emailLower: email.toLowerCase() });
+    return d ? this.toUser(d) : null;
+  }
+  async deleteUserSessions(userId: string) {
+    await this.sessions.deleteMany({ userId });
+  }
+  async putToken(t: EmailToken) {
+    await this.tokens.deleteMany({ userId: t.userId, kind: t.kind });
+    await this.tokens.insertOne({ ...t });
+  }
+  async takeToken(tokenHash: string, kind: TokenKind) {
+    return this.tokens.findOneAndDelete({ tokenHash, kind });
   }
   private toUser(d: UserDoc): User {
     const raw = d.avatar?.data as unknown;
@@ -153,6 +222,8 @@ class MongoStore implements Store {
       avatarVersion: d.avatarVersion ?? 0,
       createdAt: d.createdAt,
       radioFavorites: d.radioFavorites ?? [],
+      email: d.email ?? null,
+      emailVerified: !!d.emailVerified,
     };
   }
   async findByUsername(username: string) {
@@ -166,13 +237,21 @@ class MongoStore implements Store {
   }
   async create(u: Omit<User, 'id'>) {
     const _id = new ObjectId();
-    await this.users.insertOne({ ...u, _id, usernameLower: u.username.toLowerCase() } as UserDoc);
+    const doc = { ...u, _id, usernameLower: u.username.toLowerCase() } as UserDoc;
+    if (u.email) doc.emailLower = u.email.toLowerCase();
+    await this.users.insertOne(doc);
     return { ...u, id: _id.toHexString() };
   }
   async update(id: string, patch: Partial<User>) {
+    const set = { ...patch } as Partial<UserDoc>;
+    const unset: Record<string, ''> = {};
+    if ('email' in patch) {
+      if (patch.email) set.emailLower = patch.email.toLowerCase();
+      else unset.emailLower = '';
+    }
     const d = await this.users.findOneAndUpdate(
       { _id: new ObjectId(id) },
-      { $set: patch as Partial<UserDoc> },
+      Object.keys(unset).length ? { $set: set, $unset: unset } : { $set: set },
       { returnDocument: 'after' },
     );
     return d ? this.toUser(d) : null;
@@ -225,14 +304,32 @@ export function cleanDisplayName(raw: unknown): string {
   return String(raw ?? '').trim().replace(/\s+/g, ' ').slice(0, 16);
 }
 
-export async function register(usernameRaw: unknown, passwordRaw: unknown) {
+const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@.]{2,}$/;
+const EMAIL_TAKEN = 'Bu e-posta başka bir hesapta kullanılıyor.';
+
+function cleanEmail(raw: unknown): string {
+  const email = String(raw ?? '').trim();
+  if (!EMAIL_RE.test(email) || email.length > 254) throw new AuthError('Geçerli bir e-posta adresi yaz.');
+  return email;
+}
+
+function checkPassword(password: string) {
+  if (password.length < 6 || password.length > 100) throw new AuthError('Şifre en az 6 karakter olmalı.');
+}
+
+const isDup = (err: unknown) => (err as { code?: number }).code === 11000;
+const dupIsEmail = (err: unknown) => !!(err as { keyPattern?: Record<string, unknown> }).keyPattern?.emailLower;
+
+export async function register(usernameRaw: unknown, passwordRaw: unknown, emailRaw: unknown) {
   const username = String(usernameRaw ?? '').trim();
   const password = String(passwordRaw ?? '');
   if (!USERNAME_RE.test(username))
     throw new AuthError('Kullanıcı adı 3-20 karakter olmalı; harf, rakam, nokta ve alt çizgi kullanılabilir.');
-  if (password.length < 6 || password.length > 100) throw new AuthError('Şifre en az 6 karakter olmalı.');
+  checkPassword(password);
+  const email = cleanEmail(emailRaw);
   const s = getStore();
   if (await s.findByUsername(username)) throw new AuthError('Bu kullanıcı adı alınmış.', 409);
+  if (await s.findByEmail(email)) throw new AuthError(EMAIL_TAKEN, 409);
   try {
     return await s.create({
       username,
@@ -241,12 +338,77 @@ export async function register(usernameRaw: unknown, passwordRaw: unknown) {
       avatar: null,
       avatarVersion: 0,
       radioFavorites: [],
+      email,
+      emailVerified: false,
       createdAt: new Date(),
     });
   } catch (err) {
-    if ((err as { code?: number }).code === 11000) throw new AuthError('Bu kullanıcı adı alınmış.', 409);
+    if (isDup(err)) throw new AuthError(dupIsEmail(err) ? EMAIL_TAKEN : 'Bu kullanıcı adı alınmış.', 409);
     throw err;
   }
+}
+
+// ---------- e-posta doğrulama ve şifre sıfırlama ----------
+
+const TOKEN_TTL: Record<TokenKind, number> = { verify: 48 * 60 * 60_000, reset: 30 * 60_000 };
+
+/** Tek kullanımlık link anahtarı üretir; veritabanında sadece özeti durur. */
+export async function createEmailToken(user: User, kind: TokenKind): Promise<string> {
+  if (!user.email) throw new AuthError('Hesabında e-posta yok.');
+  const token = randomBytes(32).toString('base64url');
+  await getStore().putToken({ tokenHash: sha256(token), userId: user.id, kind, email: user.email.toLowerCase(), expiresAt: new Date(Date.now() + TOKEN_TTL[kind]) });
+  return token;
+}
+
+async function useToken(tokenRaw: unknown, kind: TokenKind): Promise<User> {
+  const token = String(tokenRaw ?? '');
+  const bad = new AuthError(kind === 'verify' ? 'Doğrulama linki geçersiz ya da süresi dolmuş.' : 'Şifre sıfırlama linki geçersiz ya da süresi dolmuş.', 400);
+  if (!/^[A-Za-z0-9_-]{20,100}$/.test(token)) throw bad;
+  const s = getStore();
+  const t = await s.takeToken(sha256(token), kind);
+  if (!t || t.expiresAt.getTime() < Date.now()) throw bad;
+  const user = await s.findById(t.userId);
+  // Link gönderildikten sonra e-posta değiştiyse eski adrese giden link işe yaramaz.
+  if (!user || user.email?.toLowerCase() !== t.email) throw bad;
+  return user;
+}
+
+export async function setEmail(userId: string, emailRaw: unknown): Promise<User> {
+  const email = cleanEmail(emailRaw);
+  const s = getStore();
+  const current = await s.findById(userId);
+  if (!current) throw new AuthError('Kullanıcı bulunamadı.', 404);
+  if (current.email?.toLowerCase() === email.toLowerCase() && current.emailVerified) return current;
+  const other = await s.findByEmail(email);
+  if (other && other.id !== userId) throw new AuthError(EMAIL_TAKEN, 409);
+  try {
+    return (await s.update(userId, { email, emailVerified: false }))!;
+  } catch (err) {
+    if (isDup(err)) throw new AuthError(EMAIL_TAKEN, 409);
+    throw err;
+  }
+}
+
+export async function verifyEmail(tokenRaw: unknown): Promise<User> {
+  const user = await useToken(tokenRaw, 'verify');
+  return (await getStore().update(user.id, { emailVerified: true }))!;
+}
+
+export async function findUserByEmail(emailRaw: unknown): Promise<User | null> {
+  const email = String(emailRaw ?? '').trim();
+  if (!EMAIL_RE.test(email)) throw new AuthError('Geçerli bir e-posta adresi yaz.');
+  return getStore().findByEmail(email);
+}
+
+/** Linkle yeni şifre belirler; diğer bütün oturumları kapatır. Link maile geldiği için e-posta da doğrulanmış olur. */
+export async function resetPassword(tokenRaw: unknown, passwordRaw: unknown): Promise<User> {
+  const password = String(passwordRaw ?? '');
+  checkPassword(password);
+  const user = await useToken(tokenRaw, 'reset');
+  const s = getStore();
+  const updated = (await s.update(user.id, { passwordHash: await hashPassword(password), emailVerified: true }))!;
+  await s.deleteUserSessions(user.id);
+  return updated;
 }
 
 export async function login(usernameRaw: unknown, passwordRaw: unknown) {

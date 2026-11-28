@@ -32,7 +32,12 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
 export const api = {
   me: () => request<Me>('GET', '/api/me'),
   login: (username: string, password: string) => request<Me>('POST', '/api/login', { username, password }),
-  register: (username: string, password: string) => request<Me>('POST', '/api/register', { username, password }),
+  register: (username: string, password: string, email: string) => request<Me>('POST', '/api/register', { username, password, email }),
+  setEmail: (email: string) => request<Me>('PUT', '/api/email', { email }),
+  resendVerification: () => request<{ ok: true; alreadyVerified?: boolean }>('POST', '/api/email/resend'),
+  verifyEmail: (token: string) => request<{ ok: true; displayName: string }>('POST', '/api/email/verify', { token }),
+  forgotPassword: (email: string) => request<{ ok: true }>('POST', '/api/password/forgot', { email }),
+  resetPassword: (token: string, password: string) => request<Me>('POST', '/api/password/reset', { token, password }),
   logout: () => request<{ ok: true }>('POST', '/api/logout'),
   updateProfile: (patch: { displayName?: string; avatar?: string | null }) => request<Me>('PUT', '/api/profile', patch),
   peek: <T,>(id: string) => request<T>('GET', `/api/tables/${encodeURIComponent(id)}`),

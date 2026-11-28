@@ -145,6 +145,9 @@ export interface Me {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  /** Şifre sıfırlama için; eski hesaplarda null olabilir. */
+  email: string | null;
+  emailVerified: boolean;
 }
 
 export interface TableView {

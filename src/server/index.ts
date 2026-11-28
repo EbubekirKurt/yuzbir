@@ -22,11 +22,18 @@ import {
   SESSION_COOKIE,
   SESSION_MAX_AGE,
   updateProfile,
+  createEmailToken,
+  findUserByEmail,
+  resetPassword,
+  selfUser,
+  setEmail,
+  verifyEmail,
   userFromToken,
   type User,
 } from './auth';
 import { connectDb, dbReady, loadTableSnapshots, recentGames } from './db';
 import { startDiscordScheduler } from './discord';
+import { sendMail } from './mail';
 import { radioCategories, streamSource } from './radio';
 import { Readable } from 'node:stream';
 import { areFriends, initFriends, listFriendships, otherOf, removeFriend, requestFriend, respondFriend } from './friends';
@@ -107,7 +114,7 @@ app.get('/health', (_req, res) => {
 app.get(
   '/api/me',
   route(async (req, res) => {
-    res.json(publicUser(await requireUser(req)));
+    res.json(selfUser(await requireUser(req)));
   }),
 );
 
@@ -115,9 +122,11 @@ app.post(
   '/api/register',
   route(async (req, res) => {
     rateLimit(req);
-    const user = await register(req.body?.username, req.body?.password);
+    const user = await register(req.body?.username, req.body?.password, req.body?.email);
     setSessionCookie(req, res, await createSession(user.id));
-    res.status(201).json(publicUser(user));
+    mailCooldown(`verify:${user.id}:${user.email?.toLowerCase()}`);
+    void sendVerification(user, req).catch((err) => console.error('[mail] doğrulama gönderilemedi:', err));
+    res.status(201).json(selfUser(user));
   }),
 );
 
@@ -127,7 +136,7 @@ app.post(
     rateLimit(req);
     const user = await login(req.body?.username, req.body?.password);
     setSessionCookie(req, res, await createSession(user.id));
-    res.json(publicUser(user));
+    res.json(selfUser(user));
   }),
 );
 
@@ -157,7 +166,97 @@ app.put(
         broadcastTable(t);
       }
     }
-    res.json(publicUser(updated));
+    res.json(selfUser(updated));
+  }),
+);
+
+// ---------- e-posta: doğrulama ve şifre sıfırlama ----------
+
+/** Mail linkleri için site adresi: SITE_URL (canlıda ayarlı olmalı) ya da isteğin geldiği adres. */
+const siteOrigin = (req: Request) => (process.env.SITE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+
+// Aynı hesaba/adrese art arda mail atılmasın (dakikada 1).
+const lastMail = new Map<string, number>();
+function mailCooldown(key: string): boolean {
+  const now = Date.now();
+  if ((lastMail.get(key) ?? 0) > now - 60_000) return false;
+  lastMail.set(key, now);
+  if (lastMail.size > 5000) for (const [k, t] of lastMail) if (t < now - 60_000) lastMail.delete(k);
+  return true;
+}
+
+async function sendVerification(user: User, req: Request) {
+  if (!user.email) return;
+  const token = await createEmailToken(user, 'verify');
+  await sendMail({
+    to: user.email,
+    subject: 'Yüzbir: e-posta adresini doğrula',
+    lines: [`Merhaba ${user.displayName},`, 'Yüzbir hesabına bu e-posta adresi eklendi. Senin olduğunu doğrulamak için düğmeye bas.'],
+    button: { text: 'E-postamı doğrula', url: `${siteOrigin(req)}/dogrula/${token}` },
+    footer: 'Link 48 saat geçerli. Bu hesabı sen açmadıysan bu maili yok sayabilirsin.',
+  });
+}
+
+app.put(
+  '/api/email',
+  route(async (req, res) => {
+    rateLimit(req);
+    const user = await requireUser(req);
+    const updated = await setEmail(user.id, req.body?.email);
+    if (!updated.emailVerified && mailCooldown(`verify:${user.id}:${updated.email?.toLowerCase()}`)) await sendVerification(updated, req);
+    res.json(selfUser(updated));
+  }),
+);
+
+app.post(
+  '/api/email/resend',
+  route(async (req, res) => {
+    const user = await requireUser(req);
+    if (!user.email) throw new AuthError('Önce bir e-posta adresi ekle.');
+    if (user.emailVerified) return res.json({ ok: true, alreadyVerified: true });
+    if (!mailCooldown(`verify:${user.id}:${user.email.toLowerCase()}`)) throw new AuthError('Az önce gönderdik. Bir dakika sonra tekrar dene.', 429);
+    await sendVerification(user, req);
+    res.json({ ok: true });
+  }),
+);
+
+app.post(
+  '/api/email/verify',
+  route(async (req, res) => {
+    rateLimit(req);
+    const user = await verifyEmail(req.body?.token);
+    res.json({ ok: true, displayName: user.displayName });
+  }),
+);
+
+app.post(
+  '/api/password/forgot',
+  route(async (req, res) => {
+    rateLimit(req);
+    const user = await findUserByEmail(req.body?.email);
+    // Hesap olsun olmasın aynı yanıt: e-postanın kayıtlı olup olmadığı buradan öğrenilemesin.
+    if (user?.email && mailCooldown(`reset:${user.id}`)) {
+      const token = await createEmailToken(user, 'reset');
+      await sendMail({
+        to: user.email,
+        subject: 'Yüzbir: şifre sıfırlama',
+        lines: [`Merhaba ${user.displayName},`, `"${user.username}" kullanıcı adlı hesabın için şifre sıfırlama istendi. Yeni şifre belirlemek için düğmeye bas.`],
+        button: { text: 'Yeni şifre belirle', url: `${siteOrigin(req)}/sifre/${token}` },
+        footer: 'Link 30 dakika geçerli ve tek kullanımlık. Bu isteği sen yapmadıysan bu maili yok sayabilirsin; şifren değişmez.',
+      }).catch((err) => console.error('[mail] sıfırlama gönderilemedi:', err));
+    }
+    res.json({ ok: true });
+  }),
+);
+
+app.post(
+  '/api/password/reset',
+  route(async (req, res) => {
+    rateLimit(req);
+    const user = await resetPassword(req.body?.token, req.body?.password);
+    io.in(`user:${user.id}`).disconnectSockets(true); // eski oturumlar kapandı
+    setSessionCookie(req, res, await createSession(user.id));
+    res.json(selfUser(user));
   }),
 );
 

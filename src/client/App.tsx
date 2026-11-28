@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LobbyTable, Me, TableInvite, TableView } from '../shared/types';
-import { ProfileEditor } from './components/ProfileEditor';
+import { EmailSettings, ProfileEditor } from './components/ProfileEditor';
 import { Radio } from './components/Radio';
 import { HomeContext, Logo, Stage, useIsMobile } from './components/Stage';
 import { AuthScreen } from './screens/AuthScreen';
 import { CreateTable } from './screens/CreateTable';
+import { EmailLinkScreen, emailLinkFromUrl } from './screens/EmailLinkScreen';
 import { GameScreen } from './screens/GameScreen';
 import { JoinScreen } from './screens/JoinScreen';
 import { Lobby } from './screens/Lobby';
@@ -75,6 +76,9 @@ function syncUrl(tableId: string | null) {
   const path = tableId ? tablePath(tableId) : '/';
   if (location.pathname !== path || location.search) history.replaceState(null, '', path + location.hash);
 }
+
+// Mail linkiyle (/dogrula/…, /sifre/…) açıldıysa önce o ekran gösterilir.
+const emailLink = emailLinkFromUrl();
 
 export default function App() {
   const [me, setMe] = useState<Me | null | undefined>(undefined); // undefined: yükleniyor
@@ -170,7 +174,7 @@ export default function App() {
   // Oturduğun masa (ya da katılmak üzere olduğun masa) adreste görünsün: /masa/<id>
   const urlTableId = table?.id ?? joinId;
   useEffect(() => {
-    if (me === undefined) return; // oturum yüklenirken davet adresine dokunma
+    if (me === undefined || emailLink) return; // oturum yüklenirken ya da mail linkindeyken adrese dokunma
     syncUrl(urlTableId);
   }, [me === undefined, urlTableId]);
 
@@ -200,7 +204,10 @@ export default function App() {
   };
 
   let screen;
-  if (me === undefined) {
+  if (emailLink) {
+    // İşlem bitince temiz bir sayfayla ana sayfaya dön (şifre sıfırlanınca yeni oturumla bağlanılsın).
+    screen = <EmailLinkScreen link={emailLink} onDone={() => location.replace('/')} />;
+  } else if (me === undefined) {
     screen = null;
   } else if (me === null) {
     screen = <AuthScreen invited={!!joinId} onAuthed={setMe} />;
@@ -223,12 +230,13 @@ export default function App() {
         <div className="top-left" style={{ position: 'absolute', left: 48, top: 32 }}>
           <Logo />
         </div>
-        <div className="panel" style={{ left: 460, top: 200, width: 1000, height: 520 }}>
+        <div className="panel" style={{ left: 460, top: 140, width: 1000, height: 780 }}>
           <div className="panel-head">
             <h1>Profilim</h1>
           </div>
           <div style={{ padding: '36px 44px', display: 'flex', flexDirection: 'column', gap: 24, flex: 1 }}>
             <ProfileEditor me={me} onChange={setMe} />
+            <EmailSettings me={me} onChange={setMe} />
             <div style={{ marginTop: 'auto', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
               <button className="btn danger" onClick={logout}>Çıkış yap</button>
               <button className="btn primary" onClick={() => setProfileOpen(false)}>Lobiye dön</button>

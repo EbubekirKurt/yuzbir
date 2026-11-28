@@ -57,6 +57,18 @@ export function Lobby(props: {
             </button>
           </div>
 
+          {!props.me.emailVerified && (
+            <div className="card email-notice" role="note">
+              <span>
+                {props.me.email
+                  ? <>E-posta adresini doğrula: <b>{props.me.email}</b> adresine bir link gönderdik.</>
+                  : 'Şifreni unutursan sıfırlayabilmek için hesabına bir e-posta adresi ekle.'}
+              </span>
+              <button className="btn small primary" onClick={props.onProfile}>
+                {props.me.email ? 'Profilde gör' : 'E-posta ekle'}
+              </button>
+            </div>
+          )}
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
             {props.tables.length === 0 && (
               <div className="card" style={{ padding: 24, fontWeight: 800, fontSize: 18 }}>

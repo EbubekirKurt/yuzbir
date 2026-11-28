@@ -164,6 +164,12 @@ button:disabled { cursor: not-allowed; }
   background: var(--chip); color: var(--on-accent); border: 3px solid var(--outline); border-radius: 999px; font-weight: 900; font-size: 17px; white-space: nowrap;
 }
 .chip.white { background: var(--surface); color: var(--text); }
+.chip.good { background: #57bd5f; color: #1d2b12; }
+.chip.warn { background: var(--yellow); color: var(--on-accent); }
+.link-btn { border: 0; background: none; padding: 0; font: inherit; font-weight: 800; font-size: 15px; color: var(--text-soft); text-decoration: underline; cursor: pointer; }
+.link-btn:hover { color: var(--text); }
+.email-notice { padding: 14px 18px; display: flex; align-items: center; gap: 14px; box-shadow: none; background: var(--surface); border-color: var(--yellow); font-weight: 800; font-size: 16px; line-height: 1.4; }
+.email-notice > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .turn-chip { gap: 8px; padding: 0 14px 0 5px; max-width: 260px; background: var(--surface); color: var(--text); }
 .turn-chip .avatar { border-width: 2px; }
 .turn-chip .who { overflow: hidden; text-overflow: ellipsis; }
