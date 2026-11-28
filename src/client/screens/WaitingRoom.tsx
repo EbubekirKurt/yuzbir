@@ -20,7 +20,7 @@ export function WaitingRoom({ table }: { table: TableView }) {
   const me = table.mySeat ?? 0;
   const esli = table.settings.mode === 'esli';
   const full = table.seats.every(Boolean);
-  const link = `${location.origin}/?masa=${table.id}`;
+  const link = `${location.origin}/masa/${table.id}`;
 
   const copy = async () => {
     try {

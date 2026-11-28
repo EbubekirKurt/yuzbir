@@ -62,14 +62,18 @@ function ThemeToggle() {
   );
 }
 
-const inviteFromUrl = () => new URLSearchParams(location.search).get('masa');
+/** Masa adresi: /masa/<id>. Eski davet linkleri (?masa=<id>) de çalışır. */
+function tableIdFromUrl(): string | null {
+  const m = /^\/masa\/([A-Za-z0-9-]{1,40})\/?$/.exec(location.pathname);
+  return m ? m[1] : new URLSearchParams(location.search).get('masa');
+}
 
-function clearInviteFromUrl() {
-  const url = new URL(location.href);
-  if (url.searchParams.has('masa')) {
-    url.searchParams.delete('masa');
-    history.replaceState(null, '', url.pathname + url.search + url.hash);
-  }
+const tablePath = (id: string) => `/masa/${encodeURIComponent(id)}`;
+
+/** Adres çubuğunu ekrandaki duruma uydurur; geçmişe kayıt eklemez (geri tuşu masadan düşürmesin). */
+function syncUrl(tableId: string | null) {
+  const path = tableId ? tablePath(tableId) : '/';
+  if (location.pathname !== path || location.search) history.replaceState(null, '', path + location.hash);
 }
 
 export default function App() {
@@ -80,7 +84,7 @@ export default function App() {
   const [table, setTable] = useState<TableView | null>(null);
   const [creating, setCreating] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [joinId, setJoinId] = useState<string | null>(inviteFromUrl());
+  const [joinId, setJoinId] = useState<string | null>(tableIdFromUrl());
   const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
   const [invites, setInvites] = useState<TableInvite[]>([]);
   const mobile = useIsMobile();
@@ -137,7 +141,6 @@ export default function App() {
       if (t) {
         setCreating(false);
         setJoinId(null);
-        clearInviteFromUrl();
       }
     };
     socket.on('connect', onConnect);
@@ -164,6 +167,13 @@ export default function App() {
     };
   }, [me?.id]);
 
+  // Oturduğun masa (ya da katılmak üzere olduğun masa) adreste görünsün: /masa/<id>
+  const urlTableId = table?.id ?? joinId;
+  useEffect(() => {
+    if (me === undefined) return; // oturum yüklenirken davet adresine dokunma
+    syncUrl(urlTableId);
+  }, [me === undefined, urlTableId]);
+
   const logout = async () => {
     await api.logout().catch(() => undefined);
     socket.disconnect();
@@ -187,10 +197,7 @@ export default function App() {
         tableId={joinId}
         me={me}
         onMe={setMe}
-        onCancel={() => {
-          setJoinId(null);
-          clearInviteFromUrl();
-        }}
+        onCancel={() => setJoinId(null)}
       />
     );
   } else if (profileOpen) {
