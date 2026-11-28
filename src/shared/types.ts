@@ -179,9 +179,6 @@ export type GameAction =
 export interface RadioStation {
   id: string;
   name: string;
-  /** stream: internet radyosu; youtube: resmi YouTube oynatma listesi (görünür oynatıcıyla çalar) */
-  kind: 'stream' | 'youtube';
-  playlistId?: string;
   url: string;
   favicon: string | null;
   country: string;
