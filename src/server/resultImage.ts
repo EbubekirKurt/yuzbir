@@ -23,6 +23,7 @@ const C = {
   ink: '#3b2a1a',
 };
 const RANK_BG = ['#FFD23F', '#E3E3E3', '#F0B98A', '#F1E4CF'];
+const TEAM_COLOR = ['#FFB23F', '#7FB8FF']; // takım şeritleri
 const WIDTH = 1280;
 const NUNITO = "'Nunito', 'Nunito Ext'";
 const BALOO = "'Baloo 2', 'Baloo 2 Ext', 'Nunito Ext'";
@@ -91,6 +92,32 @@ function layout(s: GameSummary): { tree: Node; height: number } {
   ].join(' · ');
   const date = s.finishedAt.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Istanbul' });
 
+  // Eşli oyunda: oyuncular takım takım sıralanır, kazanan takımın satırları yeşil,
+  // sıra rozeti takımın sırasını gösterir.
+  const teamTotal = [s.totals[0] + (s.totals[2] ?? 0), s.totals[1] + (s.totals[3] ?? 0)];
+  const teamRank = [teamTotal[0] <= teamTotal[1] ? 1 : 2, teamTotal[1] <= teamTotal[0] ? 1 : 2];
+  // Kazanan takım üstte.
+  const seats = esli ? (teamRank[0] <= teamRank[1] ? [0, 2, 1, 3] : [1, 3, 0, 2]) : s.players.map((_, i) => i);
+  const rankOf = (seat: number) => (esli ? teamRank[seat % 2] : r[seat]);
+  const badge = (n: number, size = 42) =>
+    h(
+      'div',
+      {
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        border: `3px solid ${C.outline}`,
+        background: RANK_BG[n - 1] ?? RANK_BG[3],
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: BALOO,
+        fontSize: 21,
+        color: C.ink,
+      },
+      n,
+    );
+  const stripe = (team: number) => h('div', { width: 8, height: 30, borderRadius: 4, background: TEAM_COLOR[team], marginRight: 12, flexShrink: 0 }, '');
+
   const NAME_W = 210;
   const TOTAL_W = 140;
   const RANK_W = 100;
@@ -109,41 +136,36 @@ function layout(s: GameSummary): { tree: Node; height: number } {
     h('div', { width: NAME_W }, 'OYUNCU'),
     ...Array.from({ length: hands }, (_, i) => h('div', cell, `EL ${i + 1}`)),
     h('div', { width: TOTAL_W, justifyContent: 'flex-end' }, 'TOPLAM'),
-    h('div', { width: RANK_W, justifyContent: 'center' }, 'SIRA'),
+    h('div', { width: RANK_W, justifyContent: 'center' }, esli ? 'TAKIM' : 'SIRA'),
   );
 
-  const rows = s.players.map((p, seat) =>
-    h(
+  const rows = seats.map((seat, idx) => {
+    const p = s.players[seat];
+    const groupStart = esli && idx === 2; // ikinci takımın ilk satırı
+    return h(
       'div',
-      { ...row(r[seat] === 1 ? C.win : C.surface, true, 60), fontFamily: NUNITO, fontWeight: 800, fontSize: 18, color: C.text },
-      h('div', { width: NAME_W, fontWeight: 900, overflow: 'hidden' }, p.isBot && !/^bot/i.test(p.name) ? `${p.name} (bot)` : p.name),
+      {
+        ...row(rankOf(seat) === 1 ? C.win : C.surface, true, 60),
+        ...(groupStart ? { borderTop: `4px solid ${C.outline}` } : {}),
+        fontFamily: NUNITO,
+        fontWeight: 800,
+        fontSize: 18,
+        color: C.text,
+      },
+      h(
+        'div',
+        { width: NAME_W, fontWeight: 900, overflow: 'hidden', alignItems: 'center' },
+        esli ? stripe(seat % 2) : null,
+        p.isBot && !/^bot\b/i.test(p.name) ? `${p.name} (bot)` : p.name,
+      ),
       ...Array.from({ length: hands }, (_, i) => {
         const hand = s.history[i];
         return h('div', { ...cell, color: hand ? C.text : C.soft }, hand ? hand.rows[seat].total : '—');
       }),
       h('div', { width: TOTAL_W, justifyContent: 'flex-end', fontFamily: BALOO, fontSize: 28 }, s.totals[seat]),
-      h(
-        'div',
-        { width: RANK_W, justifyContent: 'center' },
-        h(
-          'div',
-          {
-            width: 42,
-            height: 42,
-            borderRadius: 21,
-            border: `3px solid ${C.outline}`,
-            background: RANK_BG[r[seat] - 1] ?? RANK_BG[3],
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: BALOO,
-            fontSize: 21,
-            color: C.ink,
-          },
-          r[seat],
-        ),
-      ),
-    ),
-  );
+      h('div', { width: RANK_W, justifyContent: 'center' }, badge(rankOf(seat))),
+    );
+  });
 
   const table = h(
     'div',
@@ -156,20 +178,25 @@ function layout(s: GameSummary): { tree: Node; height: number } {
     ? h(
         'div',
         { flexDirection: 'column', border: `3px solid ${C.outline}`, borderRadius: 18, overflow: 'hidden', background: C.surface },
-        ...[0, 1].map((t) =>
-          h(
-            'div',
-            { ...row(C.surface, t === 1, 56), justifyContent: 'space-between', fontFamily: NUNITO, fontWeight: 900, fontSize: 18, color: C.text },
-            h('div', {}, `Takım: ${s.players[t].name} + ${s.players[t + 2].name}`),
-            h('div', { fontFamily: BALOO, fontSize: 28 }, s.totals[t] + s.totals[t + 2]),
+        ...[0, 1]
+          .sort((a, b) => teamTotal[a] - teamTotal[b])
+          .map((t, i) =>
+            h(
+              'div',
+              { ...row(teamRank[t] === 1 ? C.win : C.surface, i === 1, 58), fontFamily: NUNITO, fontWeight: 900, fontSize: 19, color: C.text },
+              h('div', { flex: 1, alignItems: 'center' }, stripe(t), `Takım: ${s.players[t].name} + ${s.players[t + 2].name}`),
+              h('div', { width: TOTAL_W, justifyContent: 'flex-end', fontFamily: BALOO, fontSize: 28 }, teamTotal[t]),
+              h('div', { width: RANK_W, justifyContent: 'center' }, badge(teamRank[t])),
+            ),
           ),
-        ),
       )
     : null;
 
-  const bannerText = winnerText(s).startsWith('berabere') ? `Oyun bitti! Sonuç: ${winnerText(s)}` : `Oyun bitti! Kazanan: ${winnerText(s)}`;
+  const bannerText = winnerText(s).startsWith('berabere')
+    ? `Oyun bitti! Sonuç: ${winnerText(s)}`
+    : `Oyun bitti! ${esli ? 'Kazanan takım' : 'Kazanan'}: ${winnerText(s)}`;
 
-  const height = 82 + 24 + 66 + 16 + 52 + 3 * 2 + s.players.length * 62 + (esli ? 16 + 2 * 58 + 6 : 0) + 16 + 22 + 26;
+  const height = 82 + 24 + 66 + 16 + 52 + 3 * 2 + s.players.length * 62 + (esli ? 16 + 2 * 60 + 6 + 2 : 0) + 16 + 22 + 26;
 
   const tree = h(
     'div',

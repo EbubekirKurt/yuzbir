@@ -113,10 +113,16 @@ export function buildResultMessage(s: GameSummary, siteUrl?: string, withImage =
       teamA === teamB
         ? `🤝 **Berabere!** İki takım da ${teamA} puan`
         : `🏆 Kazanan takım: **${team(teamA < teamB ? 0 : 1)}** (${Math.min(teamA, teamB)})`;
+    const tot = [teamA, teamB];
     fields.push({
       name: 'Takımlar',
       value: [0, 1]
-        .map((t) => `${(t === 0 ? teamA : teamB) <= (t === 0 ? teamB : teamA) ? '🥇' : '🥈'} ${team(t)} — \`${t === 0 ? teamA : teamB}\``)
+        .sort((a, b) => tot[a] - tot[b])
+        .map((t) => {
+          const medal = tot[t] <= tot[1 - t] ? '🥇' : '🥈';
+          const members = [t, t + 2].map((i) => `${esc(s.players[i].name)} \`${s.totals[i]}\``).join(' · ');
+          return `${medal} **${team(t)}** — \`${tot[t]}\`\n${members}`;
+        })
         .join('\n'),
     });
   } else {
@@ -127,7 +133,7 @@ export function buildResultMessage(s: GameSummary, siteUrl?: string, withImage =
         : `🏆 Kazanan: **${esc(s.players[winners[0]].name)}** (${s.totals[winners[0]]})`;
   }
 
-  fields.unshift({
+  if (!esli) fields.unshift({
     name: 'Sıralama',
     value: order
       .map((i) => {
