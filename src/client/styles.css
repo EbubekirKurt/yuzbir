@@ -547,6 +547,7 @@ html { touch-action: manipulation; } /* çift dokunmada sayfa yakınlaşmasın *
 
 /* ---------- menü ekranları: dikey akış ---------- */
 .mobile-page { position: relative; z-index: 1; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 24px; display: flex; flex-direction: column; }
+.mobile-page > * { flex-shrink: 0; } /* paneller ekrana sığmak için büzülmesin, sayfa kaysın */
 .mobile-page .friends-card { order: 5; }
 .mobile-page .top-left { position: static !important; padding: 10px 140px 0 12px; }
 .mobile-page .top-left .logo .word { font-size: 30px; }
