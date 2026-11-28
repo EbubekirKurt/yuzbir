@@ -263,7 +263,7 @@ Windows'ta testler `c:\` yerine büyük harfli `C:\` yolundan çalıştırılmal
 - `MONGODB_URI` hiç tanımlı değilse hesaplar geçici bellekte tutulur (sadece yerel deneme için; sunucu kapanınca silinir). Yerelde böyle başlatmak için: `MONGODB_URI= npm start`.
 - `MONGODB_URI` tanımlı ama bağlanılamıyorsa giriş ve kayıt "Veritabanına bağlanılamadı" hatası verir. Atlas kullanılıyorsa sunucunun IP adresi Atlas'ta **Network Access** listesine eklenmelidir.
 
-**Discord:** Masa bitince sonuçlar bir Discord kanalına kart (embed) olarak gönderilir: kazanan, sıralama, el el puan tablosu, öne çıkanlar (en çok bitiren, baraj, en çok ceza) ve masa ayarları.
+**Discord:** Masa bitince sonuçlar bir Discord kanalına kart (embed) olarak gönderilir: kazanan, sıralama, öne çıkanlar (en çok bitiren, baraj, en çok ceza), masa ayarları ve oyundaki **Puan Tablosu**'nun koyu temadaki birebir görüntüsü (PNG, `src/server/resultImage.ts`; satori + resvg ile çizilir, yazı tipleri `@fontsource` paketlerinden). Görüntü üretilemezse tablo metin olarak gönderilir.
 - Bot ile: `DISCORD_BOT_TOKEN` ve `DISCORD_CHANNEL_ID` doldurulur. Botun o kanalda *Kanalı Görüntüle*, *Mesaj Gönder* ve *Bağlantı Yerleştir* izinleri olmalıdır. `SITE_URL` verilirse mesaja "Yeni masa kur" butonu eklenir.
 - Webhook ile: Kanal ayarları → Entegrasyonlar → Webhook'tan alınan adres `DISCORD_WEBHOOK_URL` olarak girilir.
 - Her oyun sonucu veritabanına "Discord'a gönderilmedi" olarak kaydedilir ve hemen gönderilmeye çalışılır. Gönderilemezse (ayar eksik, Discord hatası, sunucu yeniden başladı) bir zamanlayıcı **5 dakikada bir** son 24 saatte biten gönderilmemiş sonuçları yeniden dener (en fazla 20 deneme). Aralık `DISCORD_RETRY_MINUTES` ile değiştirilebilir.

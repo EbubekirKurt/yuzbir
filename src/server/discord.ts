@@ -3,6 +3,9 @@
 // İkisi de yoksa hiçbir şey gönderilmez.
 import type { HandResult, Settings } from '../shared/types';
 import { dbReady, markDiscordResult, pendingDiscordGames, type SavedGame } from './db';
+import { renderResultImage } from './resultImage';
+
+const IMAGE_NAME = 'puan-tablosu.png';
 
 export interface GameSummary {
   tableName: string;
@@ -85,7 +88,8 @@ function highlights(s: GameSummary): string[] {
 }
 
 /** Discord mesaj gövdesi (embed). Saf fonksiyon: test edilebilir. */
-export function buildResultMessage(s: GameSummary, siteUrl?: string) {
+/** withImage: tablo resim olarak eklenir; metin alanlarında sadece sıralama ve öne çıkanlar kalır. */
+export function buildResultMessage(s: GameSummary, siteUrl?: string, withImage = false) {
   const r = ranks(s.totals);
   const order = s.players.map((_, i) => i).sort((a, b) => s.totals[a] - s.totals[b]);
   const esli = s.settings.mode === 'esli';
@@ -133,7 +137,7 @@ export function buildResultMessage(s: GameSummary, siteUrl?: string) {
       })
       .join('\n'),
   });
-  fields.push({ name: 'El el puanlar', value: scoreTable(s).slice(0, 1024) });
+  if (!withImage) fields.push({ name: 'El el puanlar', value: scoreTable(s).slice(0, 1024) });
   const hl = highlights(s);
   if (hl.length) fields.push({ name: 'Öne çıkanlar', value: hl.join('\n').slice(0, 1024) });
 
@@ -147,20 +151,28 @@ export function buildResultMessage(s: GameSummary, siteUrl?: string) {
     timestamp: s.finishedAt.toISOString(),
   };
   if (siteUrl) embed.url = siteUrl;
+  if (withImage) embed.image = { url: `attachment://${IMAGE_NAME}` };
   return { embeds: [embed], allowed_mentions: { parse: [] as string[] } };
 }
 
-async function post(url: string, headers: Record<string, string>, body: unknown, retry = true): Promise<void> {
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(10_000),
-  });
+/** JSON ya da (resim varsa) multipart/form-data olarak gönderir. */
+async function post(url: string, headers: Record<string, string>, body: unknown, image: Buffer | null, retry = true): Promise<void> {
+  let payload: BodyInit;
+  const h = { ...headers };
+  if (image) {
+    const form = new FormData();
+    form.append('payload_json', JSON.stringify(body));
+    form.append('files[0]', new Blob([new Uint8Array(image)], { type: 'image/png' }), IMAGE_NAME);
+    payload = form;
+  } else {
+    h['Content-Type'] = 'application/json';
+    payload = JSON.stringify(body);
+  }
+  const res = await fetch(url, { method: 'POST', headers: h, body: payload, signal: AbortSignal.timeout(20_000) });
   if (res.status === 429 && retry) {
     const data = (await res.json().catch(() => ({}))) as { retry_after?: number };
     await new Promise((r) => setTimeout(r, Math.min(10, data.retry_after ?? 2) * 1000));
-    return post(url, headers, body, false);
+    return post(url, headers, body, image, false);
   }
   if (!res.ok) throw new Error(`Discord ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
@@ -174,7 +186,6 @@ export type SendResult = { ok: true } | { ok: false; error: string; skipped?: bo
 /** Sonucu gönderir; hata fırlatmaz, sonucu döner. */
 export async function postGameResult(s: GameSummary): Promise<SendResult> {
   const siteUrl = process.env.SITE_URL || undefined;
-  const message = buildResultMessage(s, siteUrl);
   const token = process.env.DISCORD_BOT_TOKEN;
   const channel = process.env.DISCORD_CHANNEL_ID;
   const webhook = process.env.DISCORD_WEBHOOK_URL;
@@ -182,14 +193,22 @@ export async function postGameResult(s: GameSummary): Promise<SendResult> {
     console.warn(`[discord] Ayar yok (DISCORD_BOT_TOKEN + DISCORD_CHANNEL_ID ya da DISCORD_WEBHOOK_URL); "${s.tableName}" sonucu gönderilmedi.`);
     return { ok: false, error: 'Discord ayarı yok', skipped: true };
   }
+  // Tablo görüntüsü; üretilemezse mesaj metin tablosuyla gider.
+  let image: Buffer | null = null;
+  try {
+    image = await renderResultImage(s);
+  } catch (err) {
+    console.error('[discord] puan tablosu görüntüsü üretilemedi, metin tablosu gönderilecek:', (err as Error).message);
+  }
+  const message = buildResultMessage(s, siteUrl, !!image);
   try {
     if (token && channel) {
       const components = siteUrl
         ? [{ type: 1, components: [{ type: 2, style: 5, label: 'Yeni masa kur', url: siteUrl }] }]
         : undefined;
-      await post(`https://discord.com/api/v10/channels/${channel}/messages`, { Authorization: `Bot ${token}` }, { ...message, components });
+      await post(`https://discord.com/api/v10/channels/${channel}/messages`, { Authorization: `Bot ${token}` }, { ...message, components }, image);
     } else {
-      await post(webhook!, {}, { ...message, username: 'Yüzbir' });
+      await post(webhook!, {}, { ...message, username: 'Yüzbir' }, image);
     }
     console.log(`[discord] "${s.tableName}" sonucu gönderildi.`);
     return { ok: true };
