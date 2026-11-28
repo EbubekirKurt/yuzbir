@@ -16,7 +16,7 @@ export function useIsMobile() {
 /**
  * Sahne:
  * - fixed: 1920×1080 tuvali pencereye sığdırır (masaüstü)
- * - game: telefonda yatay oyun için 1100×500 tuval; dik tutulursa "yan çevir" uyarısı
+ * - game: telefonda yatay oyun için 1100×500 tuval; dik tutulursa oyun 90° döndürülür
  * - page: telefonda menü ekranları; ölçekleme yok, sayfa dikey kayar
  */
 export function Stage({ children, mode = 'fixed' }: { children: ReactNode; mode?: 'fixed' | 'game' | 'page' }) {
