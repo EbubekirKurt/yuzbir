@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { LobbyTable, Me, TableInvite, TableView } from '../shared/types';
 import { ProfileEditor } from './components/ProfileEditor';
 import { Radio } from './components/Radio';
-import { Logo, Stage, useIsMobile } from './components/Stage';
+import { HomeContext, Logo, Stage, useIsMobile } from './components/Stage';
 import { AuthScreen } from './screens/AuthScreen';
 import { CreateTable } from './screens/CreateTable';
 import { GameScreen } from './screens/GameScreen';
@@ -182,6 +182,23 @@ export default function App() {
     setMe(null);
   };
 
+  /** Logoya basınca: lobiye dön. Masadaysan önce sorulur (oyun sürüyorsa hamleler otomatik oynanır). */
+  const goHome = () => {
+    const t = tableRef.current;
+    if (t) {
+      const inGame = t.status === 'playing' && t.game && t.game.phase !== 'gameOver';
+      const q = inGame
+        ? 'Ana sayfaya dönmek için masadan çıkman gerekiyor. Hamlelerin otomatik oynanır. Çıkmak istiyor musun?'
+        : 'Ana sayfaya dönmek için masadan çıkman gerekiyor. Çıkmak istiyor musun?';
+      if (!window.confirm(q)) return;
+      socket.emit('table:leave');
+      setTable(null);
+    }
+    setCreating(false);
+    setProfileOpen(false);
+    setJoinId(null);
+  };
+
   let screen;
   if (me === undefined) {
     screen = null;
@@ -237,7 +254,9 @@ export default function App() {
 
   return (
     <>
-      <Stage mode={mobile ? (table && table.status === 'playing' && table.game ? 'game' : 'page') : 'fixed'}>{screen}</Stage>
+      <HomeContext.Provider value={goHome}>
+        <Stage mode={mobile ? (table && table.status === 'playing' && table.game ? 'game' : 'page') : 'fixed'}>{screen}</Stage>
+      </HomeContext.Provider>
       <SoundToggle />
       <ThemeToggle />
       <Radio />

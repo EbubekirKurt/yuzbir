@@ -175,7 +175,9 @@ button:disabled { cursor: not-allowed; }
   font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 19px; color: var(--text); width: 100%;
 }
 
-.logo { display: flex; align-items: center; gap: 12px; }
+.logo { display: flex; align-items: center; gap: 12px; text-decoration: none; cursor: pointer; border-radius: 12px; -webkit-tap-highlight-color: transparent; }
+.logo:active .mini-tile { transform: translateY(2px); box-shadow: 0 2px 0 var(--outline); }
+.logo:focus-visible { outline: 3px solid var(--yellow); outline-offset: 4px; }
 .logo .mini-tile {
   width: 44px; height: 60px; background: var(--tile); border: 3px solid var(--outline); border-radius: 9px; box-shadow: 0 4px 0 var(--outline);
   display: flex; align-items: center; justify-content: center; font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: 18px; color: var(--c-R);

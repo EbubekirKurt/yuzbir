@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 /** Telefon mu? Dar ekran ya da dokunmatik + küçük ekran. */
 export function useIsMobile() {
@@ -103,11 +103,25 @@ function Scene() {
   );
 }
 
+/** Logoya basınca ana sayfaya (lobiye) dönmek için App'in verdiği işlev. */
+export const HomeContext = createContext<() => void>(() => undefined);
+
 export function Logo() {
+  const goHome = useContext(HomeContext);
   return (
-    <div className="logo">
-      <div className="mini-tile">101</div>
-      <span className="word">YÜZBİR</span>
-    </div>
+    <a
+      href="/"
+      className="logo"
+      aria-label="Yüzbir ana sayfa"
+      title="Ana sayfa"
+      onClick={(e) => {
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // yeni sekmede açmaya izin ver
+        e.preventDefault();
+        goHome();
+      }}
+    >
+      <div className="mini-tile" aria-hidden="true">101</div>
+      <span className="word" aria-hidden="true">YÜZBİR</span>
+    </a>
   );
 }
