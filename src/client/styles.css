@@ -342,6 +342,34 @@ button.tile { cursor: pointer; }
 .actions .btn { height: 52px; font-size: 18px; padding: 0 8px; }
 .actions .wide { grid-column: span 2; }
 
+/* ---------- arkadaşlar ---------- */
+.friends-panel { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+.friend-add { display: flex; gap: 10px; }
+.friend-msg { font-weight: 800; font-size: 15px; color: var(--good-text); }
+.friend-msg.error { color: var(--bad-text); }
+.friends-scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.friends-h { margin: 0 0 6px; font-family: 'Baloo 2', sans-serif; font-size: 18px; }
+.friend-row { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 12px; background: var(--surface); border: 2px solid var(--line); margin-bottom: 6px; }
+.friend-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.friend-name { font-weight: 900; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.friend-sub { font-weight: 700; font-size: 13px; color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.friend-actions { display: flex; gap: 6px; align-items: center; }
+.presence { position: absolute; right: -2px; bottom: -2px; width: 14px; height: 14px; border-radius: 50%; background: #9a8f84; border: 2px solid var(--outline); }
+.presence.on { background: #4cc75a; }
+.icon-x { width: 32px; height: 32px; border-radius: 10px; border: 2px solid var(--outline); background: var(--surface); color: var(--text); font-size: 18px; line-height: 1; cursor: pointer; }
+.friend-picker { display: flex; flex-wrap: wrap; gap: 8px; max-height: 150px; overflow-y: auto; }
+.pick { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 999px; border: 2px solid var(--outline); background: var(--surface); font-weight: 800; cursor: pointer; }
+.pick.on { background: var(--chip); color: var(--on-accent); }
+.pick input { position: absolute; opacity: 0; pointer-events: none; }
+.pick:focus-within { outline: 3px solid var(--yellow); }
+.invites { position: fixed; right: 16px; top: 64px; z-index: 110; display: flex; flex-direction: column; gap: 10px; width: min(420px, calc(100vw - 32px)); }
+.invite-card {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--cream); color: var(--text);
+  border: 3px solid var(--outline); border-radius: 16px; box-shadow: 0 5px 0 var(--outline), 0 14px 30px rgba(0,0,0,.25); animation: bubble-pop .25s ease-out;
+}
+.invite-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 15px; font-weight: 700; line-height: 1.3; }
+.invite-actions { display: flex; flex-direction: column; gap: 6px; }
+
 /* ---------- tepkiler ve sohbet ---------- */
 .react-btn {
   margin-left: auto; order: 3; width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%;

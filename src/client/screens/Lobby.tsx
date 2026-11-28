@@ -1,5 +1,6 @@
 import type { LobbyTable, Me } from '../../shared/types';
 import { Avatar } from '../components/Avatar';
+import { FriendsPanel } from '../components/Friends';
 import { Logo } from '../components/Stage';
 
 export function settingsText(s: LobbyTable['settings']) {
@@ -31,7 +32,15 @@ export function Lobby(props: {
         </button>
         <button className="btn danger" onClick={props.onLogout}>Çıkış</button>
       </div>
-      <div className="panel" style={{ left: 360, top: 150, width: 1200, height: 820 }}>
+      <div className="panel" style={{ left: 1300, top: 150, width: 560, height: 820 }}>
+        <div className="panel-head">
+          <h2>Arkadaşlar</h2>
+        </div>
+        <div style={{ padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 14, flex: 1, minHeight: 0 }}>
+          <FriendsPanel onJoinTable={props.onJoin} />
+        </div>
+      </div>
+      <div className="panel" style={{ left: 60, top: 150, width: 1210, height: 820 }}>
         <div className="panel-head">
           <h1>Hoş geldin, {props.me.displayName}</h1>
         </div>

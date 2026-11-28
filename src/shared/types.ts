@@ -160,6 +160,32 @@ export interface TableView {
   chat: ChatMessage[];
 }
 
+export interface FriendInfo {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  online: boolean;
+  tableId: string | null;
+  tableName: string | null;
+  tableStatus: 'waiting' | 'playing' | null;
+}
+
+export interface FriendsData {
+  friends: FriendInfo[];
+  incoming: FriendInfo[];
+  outgoing: FriendInfo[];
+}
+
+export interface TableInvite {
+  id: number;
+  tableId: string;
+  tableName: string;
+  fromName: string;
+  fromAvatar: string | null;
+  settings: Settings;
+}
+
 export interface ChatMessage {
   id: number;
   seat: number;

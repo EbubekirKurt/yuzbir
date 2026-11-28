@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import type { LobbyTable, Me, TableView } from '../shared/types';
+import { useEffect, useRef, useState } from 'react';
+import type { LobbyTable, Me, TableInvite, TableView } from '../shared/types';
 import { ProfileEditor } from './components/ProfileEditor';
 import { Radio } from './components/Radio';
 import { Logo, Stage } from './components/Stage';
@@ -11,7 +11,8 @@ import { Lobby } from './screens/Lobby';
 import { WaitingRoom } from './screens/WaitingRoom';
 import { api, ApiError, socket } from './socket';
 import { applyTheme, initialTheme, type Theme } from './theme';
-import { setSoundEnabled, soundEnabled } from './sounds';
+import { setSoundEnabled, sfx, soundEnabled } from './sounds';
+import { Avatar } from './components/Avatar';
 
 function SoundToggle() {
   const [on, setOn] = useState(soundEnabled());
@@ -81,6 +82,23 @@ export default function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [joinId, setJoinId] = useState<string | null>(inviteFromUrl());
   const [toasts, setToasts] = useState<{ id: number; text: string }[]>([]);
+  const [invites, setInvites] = useState<TableInvite[]>([]);
+  const tableRef = useRef<TableView | null>(null);
+  tableRef.current = table;
+  const dropInvite = (id: number) => setInvites((l) => l.filter((x) => x.id !== id));
+  const acceptInvite = (inv: TableInvite) => {
+    const current = tableRef.current;
+    if (current && current.id !== inv.tableId) {
+      const q = current.status === 'playing'
+        ? 'Süren oyundan çıkıp bu masaya katılmak istiyor musun? Bu oyundaki hamlelerin otomatik oynanır.'
+        : 'Şu anki masadan çıkıp bu masaya katılmak istiyor musun?';
+      if (!window.confirm(q)) return;
+      socket.emit('table:leave');
+      setTable(null);
+    }
+    dropInvite(inv.id);
+    setJoinId(inv.tableId);
+  };
 
   const toast = (text: string) => {
     const id = Date.now() + Math.random();
@@ -124,6 +142,12 @@ export default function App() {
     socket.on('lobby', setLobby);
     socket.on('table', onTable);
     socket.on('toast', toast);
+    const onInvite = (inv: TableInvite) => {
+      sfx.turn();
+      setInvites((l) => [...l.filter((x) => x.tableId !== inv.tableId), inv].slice(-3));
+      setTimeout(() => dropInvite(inv.id), 60_000);
+    };
+    socket.on('invite', onInvite);
     socket.connect();
     return () => {
       socket.off('connect', onConnect);
@@ -132,6 +156,7 @@ export default function App() {
       socket.off('lobby', setLobby);
       socket.off('table', onTable);
       socket.off('toast', toast);
+      socket.off('invite', onInvite);
     };
   }, [me?.id]);
 
@@ -205,6 +230,23 @@ export default function App() {
       <SoundToggle />
       <ThemeToggle />
       <Radio />
+      <div className="invites" aria-live="polite">
+        {invites.map((inv) => (
+          <div key={inv.id} className="invite-card" role="alertdialog" aria-label={`${inv.fromName} seni davet ediyor`}>
+            <Avatar url={inv.fromAvatar} name={inv.fromName} size={44} bg="var(--orange)" />
+            <div className="invite-text">
+              <b>{inv.fromName}</b> seni <b>{inv.tableName}</b> masasına davet ediyor
+              <span className="friend-sub">
+                {inv.settings.mode === 'esli' ? 'Eşli' : 'Tekli'} · {inv.settings.katlamali ? 'Katlamalı' : 'Katlamasız'} · {inv.settings.hands} el
+              </span>
+            </div>
+            <div className="invite-actions">
+              <button className="btn small go" onClick={() => acceptInvite(inv)}>Katıl</button>
+              <button className="btn small" onClick={() => dropInvite(inv.id)}>Kapat</button>
+            </div>
+          </div>
+        ))}
+      </div>
       <div className="toasts" role="status" aria-live="polite">
         {authError && <div className="toast">{authError}</div>}
         {toasts.map((t) => (

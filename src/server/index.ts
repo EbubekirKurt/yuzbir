@@ -5,13 +5,14 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Server, type Socket } from 'socket.io';
-import { REACTIONS, type GameAction, type Settings } from '../shared/types';
+import { REACTIONS, type FriendInfo, type FriendsData, type GameAction, type Settings, type TableInvite } from '../shared/types';
 import {
   AuthError,
   avatarUrl,
   createSession,
   destroySession,
   findUser,
+  findUserByUsername,
   initAuth,
   login,
   parseCookies,
@@ -26,6 +27,7 @@ import {
 import { connectDb, dbReady, loadTableSnapshots, recentGames } from './db';
 import { startDiscordScheduler } from './discord';
 import { radioCategories } from './radio';
+import { areFriends, initFriends, listFriendships, otherOf, removeFriend, requestFriend, respondFriend } from './friends';
 import { sanitizeSettings, Table, type TableSnapshot } from './tables';
 
 try {
@@ -181,6 +183,88 @@ app.get(
   }),
 );
 
+// ---------- arkadaşlar ----------
+
+async function friendInfo(userId: string): Promise<FriendInfo | null> {
+  const u = await findUser(userId);
+  if (!u) return null;
+  const p = players.get(userId);
+  const t = p?.tableId ? tables.get(p.tableId) : undefined;
+  return {
+    ...publicUser(u),
+    online: !!p?.socketId,
+    tableId: t?.id ?? null,
+    tableName: t?.name ?? null,
+    tableStatus: t?.status ?? null,
+  };
+}
+
+/** Listesi değişen kullanıcılara haber verir (istemci listeyi yeniden çeker). */
+const notifyFriends = (...ids: string[]) => ids.forEach((id) => io.to(`user:${id}`).emit('friends:update'));
+
+/** Kullanıcının kabul edilmiş arkadaşlarına "durumum değişti" der (çevrimiçi/masa). */
+async function notifyPresence(userId: string) {
+  try {
+    const list = await listFriendships(userId);
+    notifyFriends(...list.filter((f) => f.status === 'accepted').map((f) => otherOf(f, userId)));
+  } catch {
+    // önemli değil: listeler zaten düzenli yenileniyor
+  }
+}
+
+app.get(
+  '/api/friends',
+  route(async (req, res) => {
+    const me = await requireUser(req);
+    const data: FriendsData = { friends: [], incoming: [], outgoing: [] };
+    for (const f of await listFriendships(me.id)) {
+      const info = await friendInfo(otherOf(f, me.id));
+      if (!info) continue;
+      if (f.status === 'accepted') data.friends.push(info);
+      else if (f.requester === me.id) data.outgoing.push(info);
+      else data.incoming.push(info);
+    }
+    // Çevrimiçi olanlar önce, sonra ada göre
+    data.friends.sort((a, b) => Number(b.online) - Number(a.online) || a.displayName.localeCompare(b.displayName, 'tr'));
+    res.json(data);
+  }),
+);
+
+app.post(
+  '/api/friends/request',
+  route(async (req, res) => {
+    const me = await requireUser(req);
+    rateLimit(req);
+    const other = await findUserByUsername(String(req.body?.username ?? ''));
+    if (!other) throw new AuthError('Bu kullanıcı adıyla bir oyuncu bulunamadı.', 404);
+    const result = await requestFriend(me.id, other.id);
+    notifyFriends(me.id, other.id);
+    res.json({ result, user: publicUser(other) });
+  }),
+);
+
+app.post(
+  '/api/friends/respond',
+  route(async (req, res) => {
+    const me = await requireUser(req);
+    const other = String(req.body?.userId ?? '');
+    await respondFriend(me.id, other, !!req.body?.accept);
+    notifyFriends(me.id, other);
+    res.json({ ok: true });
+  }),
+);
+
+app.delete(
+  '/api/friends/:userId',
+  route(async (req, res) => {
+    const me = await requireUser(req);
+    const other = String(req.params.userId);
+    await removeFriend(me.id, other);
+    notifyFriends(me.id, other);
+    res.json({ ok: true });
+  }),
+);
+
 app.get(
   '/api/radio',
   route(async (_req, res) => {
@@ -273,6 +357,29 @@ function leaveCurrentTable(p: PlayerInfo) {
   }
 }
 
+/** Masadaki oyuncu, çevrimiçi arkadaşlarını masaya davet eder. Gönderilen davet sayısını döner. */
+async function sendInvites(from: PlayerInfo, t: Table, raw: unknown): Promise<number> {
+  if (t.seatOf(from.playerId) < 0) return 0;
+  const ids = [...new Set(Array.isArray(raw) ? raw.map(String) : [])].slice(0, 10);
+  let sent = 0;
+  for (const id of ids) {
+    const target = players.get(id);
+    if (!target?.socketId || t.seatOf(id) >= 0) continue;
+    if (!(await areFriends(from.playerId, id))) continue;
+    const invite: TableInvite = {
+      id: Date.now() + Math.random(),
+      tableId: t.id,
+      tableName: t.name,
+      fromName: from.name,
+      fromAvatar: from.avatar,
+      settings: t.settings,
+    };
+    io.to(`user:${id}`).emit('invite', invite);
+    sent++;
+  }
+  return sent;
+}
+
 function cleanTableName(raw: unknown, fallback: string) {
   const s = String(raw ?? '').trim().replace(/\s+/g, ' ').slice(0, 16);
   return s || fallback.slice(0, 16);
@@ -306,6 +413,7 @@ io.on('connection', (socket: Socket) => {
   socket.join('lobby');
   socket.join(`user:${user.id}`);
   socket.emit('lobby', [...tables.values()].map((t) => t.lobbyInfo()));
+  void notifyPresence(user.id);
 
   // Yeniden bağlanma: masadaki koltuğuna geri döner.
   const current = me.tableId ? tables.get(me.tableId) : undefined;
@@ -320,13 +428,26 @@ io.on('connection', (socket: Socket) => {
 
   const toast = (msg: string) => socket.emit('toast', msg);
 
-  socket.on('table:create', (data: { name?: string; settings?: Partial<Settings> }) => {
+  socket.on('table:create', async (data: { name?: string; settings?: Partial<Settings>; invite?: string[] }) => {
     leaveCurrentTable(me);
     const t = createTable(cleanTableName(data?.name, `${me.name} masası`), sanitizeSettings(data?.settings), me.playerId);
     t.sit(me.playerId, me.name, me.avatar, 0);
     me.tableId = t.id;
     broadcastTable(t);
     broadcastLobby();
+    void notifyPresence(me.playerId);
+    if (data?.invite?.length) {
+      const n = await sendInvites(me, t, data.invite);
+      toast(n ? `${n} arkadaşına davet gönderildi.` : 'Davet edilecek çevrimiçi arkadaş bulunamadı.');
+    }
+  });
+
+  socket.on('table:invite', async (data: { userIds?: string[] }) => {
+    const t = me.tableId ? tables.get(me.tableId) : undefined;
+    if (!t) return toast('Önce bir masada olmalısın.');
+    if (t.tooFast(`inv:${me.playerId}`, 1500)) return toast('Biraz bekle, davetler çok hızlı gidiyor.');
+    const n = await sendInvites(me, t, data?.userIds);
+    toast(n ? 'Davet gönderildi.' : 'Davet gönderilemedi: arkadaşın çevrimdışı ya da zaten masada.');
   });
 
   socket.on('table:join', (data: { tableId?: string; seat?: number }) => {
@@ -405,6 +526,7 @@ io.on('connection', (socket: Socket) => {
   socket.on('disconnect', () => {
     if (me.socketId !== socket.id) return;
     me.socketId = null;
+    void notifyPresence(me.playerId);
     const t = me.tableId ? tables.get(me.tableId) : undefined;
     if (!t) return;
     const s = t.seatOf(me.playerId);
@@ -438,6 +560,7 @@ setInterval(() => {
 
 const db = await connectDb();
 await initAuth(db, !!process.env.MONGODB_URI);
+await initFriends(db);
 await restoreTables();
 startDiscordScheduler();
 httpServer.listen(PORT, () => {

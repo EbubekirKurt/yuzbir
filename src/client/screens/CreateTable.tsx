@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 const MAX_HANDS = 33;
 import type { Settings } from '../../shared/types';
+import { FriendPicker } from '../components/Friends';
 import { Logo } from '../components/Stage';
 import { socket } from '../socket';
 
@@ -60,6 +61,7 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
     setS((p) => ({ ...p, ...patch }));
     if (patch.hands !== undefined) setHandsText(String(patch.hands));
   };
+  const [invite, setInvite] = useState<string[]>([]);
   const [customHands, setCustomHands] = useState(false);
   const [handsText, setHandsText] = useState('9');
   const esli = s.mode === 'esli';
@@ -77,7 +79,7 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
         style={{ left: 260, top: 150, width: 1400, height: 860 }}
         onSubmit={(e) => {
           e.preventDefault();
-          socket.emit('table:create', { name, settings: s });
+          socket.emit('table:create', { name, settings: s, invite });
         }}
       >
         <div className="panel-head">
@@ -206,11 +208,17 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
                 </div>
               ))}
             </div>
-            <div className="hint" style={{ fontSize: 16, lineHeight: 1.5 }}>
-              Masayı kurduktan sonra koltukları görür, {esli ? 'davet linkini eşine ve rakiplerine gönderirsin.' : 'boş koltuklara bot ekleyebilir ya da davet linkini paylaşabilirsin.'}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
+              <span className="label">Arkadaşlarını davet et</span>
+              <FriendPicker selected={invite} onChange={setInvite} />
+            </div>
+            <div className="hint" style={{ fontSize: 15, lineHeight: 1.5 }}>
+              Seçtiğin çevrimiçi arkadaşlara masa kurulunca davet gider. {esli ? 'Davet linkini eşine ve rakiplerine de gönderebilirsin.' : 'Boş koltuklara bot da ekleyebilirsin.'}
             </div>
             <div style={{ marginTop: 'auto', display: 'flex', gap: 12 }}>
-              <button type="submit" className="btn go big" style={{ flex: 1 }}>Masayı Kur</button>
+              <button type="submit" className="btn go big" style={{ flex: 1 }}>
+                {invite.length ? `Masayı Kur ve ${invite.length} kişiyi davet et` : 'Masayı Kur'}
+              </button>
             </div>
           </div>
         </div>

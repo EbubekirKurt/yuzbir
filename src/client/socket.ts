@@ -1,5 +1,5 @@
 import { io } from 'socket.io-client';
-import type { GameAction, Me } from '../shared/types';
+import type { FriendsData, GameAction, Me } from '../shared/types';
 
 // Bağlantı sadece giriş yaptıktan sonra açılır; oturum httpOnly çerezle taşınır.
 export const socket = io({ autoConnect: false, withCredentials: true });
@@ -36,4 +36,8 @@ export const api = {
   logout: () => request<{ ok: true }>('POST', '/api/logout'),
   updateProfile: (patch: { displayName?: string; avatar?: string | null }) => request<Me>('PUT', '/api/profile', patch),
   peek: <T,>(id: string) => request<T>('GET', `/api/tables/${encodeURIComponent(id)}`),
+  friends: () => request<FriendsData>('GET', '/api/friends'),
+  friendRequest: (username: string) => request<{ result: 'sent' | 'accepted' }>('POST', '/api/friends/request', { username }),
+  friendRespond: (userId: string, accept: boolean) => request<{ ok: true }>('POST', '/api/friends/respond', { userId, accept }),
+  friendRemove: (userId: string) => request<{ ok: true }>('DELETE', `/api/friends/${encodeURIComponent(userId)}`),
 };

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { TableView } from '../../shared/types';
 import { Avatar } from '../components/Avatar';
+import { InviteFriends } from '../components/Friends';
 import { Logo } from '../components/Stage';
 import { socket } from '../socket';
 import { rulesSummary } from './CreateTable';
@@ -101,6 +102,12 @@ export function WaitingRoom({ table }: { table: TableView }) {
                 <button className="btn" onClick={copy}>{copied ? 'Kopyalandı' : 'Kopyala'}</button>
               </div>
             </div>
+            {!full && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <span className="label">Arkadaşlarını davet et</span>
+                <InviteFriends tableId={table.id} />
+              </div>
+            )}
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
               {table.youAreHost ? (
                 <button className="btn go big" disabled={!full} onClick={() => socket.emit('table:start')}>

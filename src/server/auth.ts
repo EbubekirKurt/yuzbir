@@ -273,6 +273,10 @@ export async function destroySession(token: string | undefined) {
   if (token && store) await store.deleteSession(sha256(token));
 }
 
+export async function findUserByUsername(username: string) {
+  return store ? store.findByUsername(String(username ?? '').trim()) : null;
+}
+
 export async function findUser(id: string) {
   return store ? store.findById(id) : null;
 }
