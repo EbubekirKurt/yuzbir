@@ -26,7 +26,8 @@ import {
 } from './auth';
 import { connectDb, dbReady, loadTableSnapshots, recentGames } from './db';
 import { startDiscordScheduler } from './discord';
-import { radioCategories } from './radio';
+import { radioCategories, streamSource } from './radio';
+import { Readable } from 'node:stream';
 import { areFriends, initFriends, listFriendships, otherOf, removeFriend, requestFriend, respondFriend } from './friends';
 import { sanitizeSettings, Table, type TableSnapshot } from './tables';
 
@@ -272,6 +273,48 @@ app.get(
     res.json(await radioCategories());
   }),
 );
+
+// Sadece HTTP yayını olan istasyonları HTTPS sitede çalabilmek için aktarır.
+// Yalnızca listedeki istasyonlar; aynı anda en fazla 40 yayın.
+let activeStreams = 0;
+const MAX_STREAMS = 40;
+app.get('/api/radio/stream/:id', async (req, res) => {
+  const url = streamSource(String(req.params.id));
+  if (!url) {
+    res.status(404).end();
+    return;
+  }
+  if (activeStreams >= MAX_STREAMS) {
+    res.status(503).end();
+    return;
+  }
+  const ac = new AbortController();
+  req.on('close', () => ac.abort());
+  try {
+    const up = await fetch(url, {
+      // Eski SHOUTcast sunucuları tarayıcı olmayan istemcilere HTTP yerine "ICY" yanıtı veriyor.
+      headers: { 'User-Agent': 'Mozilla/5.0 (Yuzbir radio relay)' /* başlıkta sadece ASCII olabilir */, 'Icy-MetaData': '0' },
+      signal: ac.signal,
+      redirect: 'follow',
+    });
+    if (!up.ok || !up.body) {
+      res.status(502).end();
+      return;
+    }
+    activeStreams++;
+    res.on('close', () => {
+      activeStreams--;
+      ac.abort();
+    });
+    res.setHeader('Content-Type', up.headers.get('content-type') ?? 'audio/mpeg');
+    res.setHeader('Cache-Control', 'no-store');
+    Readable.fromWeb(up.body as never)
+      .on('error', () => res.end())
+      .pipe(res);
+  } catch {
+    if (!res.headersSent) res.status(502).end();
+  }
+});
 
 app.get(
   '/api/history',
@@ -562,6 +605,7 @@ const db = await connectDb();
 await initAuth(db, !!process.env.MONGODB_URI);
 await initFriends(db);
 await restoreTables();
+void radioCategories(); // radyo listesini ve sağlık kontrolünü açılışta hazırla
 startDiscordScheduler();
 httpServer.listen(PORT, () => {
   console.log(`Yüzbir sunucusu http://localhost:${PORT} adresinde çalışıyor.`);
