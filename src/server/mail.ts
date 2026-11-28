@@ -1,5 +1,6 @@
-// E-posta gönderimi: Brevo'nun HTTPS API'si (Render'ın ücretsiz planı SMTP portlarını kapattığı için SMTP değil).
-// BREVO_API_KEY ve MAIL_FROM yoksa mail gönderilmez, link sunucu günlüğüne yazılır (yerel deneme için).
+// E-posta gönderimi HTTPS API ile (Render'ın ücretsiz planı SMTP portlarını kapattığı için SMTP değil).
+// Mailjet (MAILJET_API_KEY + MAILJET_SECRET_KEY) ya da Brevo (BREVO_API_KEY); ikisinde de MAIL_FROM gerekir.
+// Hiçbiri yoksa mail gönderilmez, link sunucu günlüğüne yazılır.
 
 export interface Mail {
   to: string;
@@ -11,8 +12,15 @@ export interface Mail {
   footer?: string;
 }
 
+function provider(): 'mailjet' | 'brevo' | null {
+  if (!process.env.MAIL_FROM) return null;
+  if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) return 'mailjet';
+  if (process.env.BREVO_API_KEY) return 'brevo';
+  return null;
+}
+
 export function mailConfigured(): boolean {
-  return !!(process.env.BREVO_API_KEY && process.env.MAIL_FROM);
+  return provider() !== null;
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -33,16 +41,32 @@ ${m.footer ? `<p style="margin:14px 0 0;font-size:13px;color:#6b5a4b">${esc(m.fo
 }
 
 export async function sendMail(m: Mail): Promise<void> {
-  if (!mailConfigured()) {
-    console.log(`[mail] BREVO_API_KEY/MAIL_FROM yok, gönderilmedi → ${m.to} | ${m.subject} | ${m.button.url}`);
+  const via = provider();
+  if (!via) {
+    console.log(`[mail] mail servisi ayarlı değil, gönderilmedi → ${m.to} | ${m.subject} | ${m.button.url}`);
     return;
   }
   const { html, text } = render(m);
+  const fromName = process.env.MAIL_FROM_NAME || 'Yüzbir';
+  if (via === 'mailjet') {
+    const auth = Buffer.from(`${process.env.MAILJET_API_KEY}:${process.env.MAILJET_SECRET_KEY}`).toString('base64');
+    const res = await fetch('https://api.mailjet.com/v3.1/send', {
+      method: 'POST',
+      headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        Messages: [{ From: { Email: process.env.MAIL_FROM, Name: fromName }, To: [{ Email: m.to }], Subject: m.subject, TextPart: text, HTMLPart: html }],
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body = await res.text().catch(() => '');
+    if (!res.ok || !body.includes('"success"')) throw new Error(`Mailjet ${res.status}: ${body.slice(0, 300)}`);
+    return;
+  }
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: { 'api-key': process.env.BREVO_API_KEY!, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
-      sender: { email: process.env.MAIL_FROM, name: process.env.MAIL_FROM_NAME || 'Yüzbir' },
+      sender: { email: process.env.MAIL_FROM, name: fromName },
       to: [{ email: m.to }],
       subject: m.subject,
       htmlContent: html,
