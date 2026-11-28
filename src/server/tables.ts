@@ -402,6 +402,6 @@ export function sanitizeSettings(raw: Partial<Settings> | undefined): Settings {
     esKatlama: mode === 'esli' && !!raw?.esKatlama,
     hands: Number.isInteger(raw?.hands) && raw!.hands! >= 1 && raw!.hands! <= 33 ? raw!.hands! : 9,
     turnSeconds: pick(raw?.turnSeconds, [30, 45, 60], 45),
-    islekUyari: raw?.islekUyari !== false,
+    islekUyari: raw?.islekUyari === true, // varsayılan kapalı
   };
 }

@@ -55,7 +55,7 @@ export function CreateTable({ onCancel }: { onCancel: () => void }) {
     esKatlama: false,
     hands: 9,
     turnSeconds: 45,
-    islekUyari: true,
+    islekUyari: false,
   });
   const set = (patch: Partial<Settings>) => {
     setS((p) => ({ ...p, ...patch }));

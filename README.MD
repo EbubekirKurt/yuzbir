@@ -15,7 +15,7 @@ Masayı kuran kişi şunları seçer:
 | Açma modu | Katlamalı / Katlamasız |
 | Eşe katlama (sadece eşli + katlamalı) | Evet / Hayır |
 | Hamle süresi | 30 / 45 / 60 saniye |
-| İşlek uyarısı | Açık / Kapalı (açıkken işlek taş ya da okey atmadan önce "101 ceza yazılır" onayı sorulur) |
+| İşlek uyarısı | Açık / Kapalı, varsayılan kapalı (açıkken işlek taş ya da okey atmadan önce "101 ceza yazılır" onayı sorulur) |
 
 - Masada her zaman **4 oyuncu** olur.
 - **Tekli modda** boş koltuklar **bot** ile doldurulabilir.
