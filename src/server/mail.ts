@@ -1,5 +1,7 @@
 // E-posta gönderimi HTTPS API ile (Render'ın ücretsiz planı SMTP portlarını kapattığı için SMTP değil).
-// Mailjet (MAILJET_API_KEY + MAILJET_SECRET_KEY) ya da Brevo (BREVO_API_KEY); ikisinde de MAIL_FROM gerekir.
+// 1) Gmail: kendi Google hesabındaki Apps Script web uygulaması (GMAIL_SCRIPT_URL + GMAIL_SCRIPT_SECRET),
+//    betik: scripts/gmail-apps-script.gs
+// 2) Mailjet (MAILJET_API_KEY + MAILJET_SECRET_KEY) ya da 3) Brevo (BREVO_API_KEY); bu ikisinde MAIL_FROM gerekir.
 // Hiçbiri yoksa mail gönderilmez, link sunucu günlüğüne yazılır.
 
 export interface Mail {
@@ -12,7 +14,8 @@ export interface Mail {
   footer?: string;
 }
 
-function provider(): 'mailjet' | 'brevo' | null {
+function provider(): 'gmail' | 'mailjet' | 'brevo' | null {
+  if (process.env.GMAIL_SCRIPT_URL && process.env.GMAIL_SCRIPT_SECRET) return 'gmail';
   if (!process.env.MAIL_FROM) return null;
   if (process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY) return 'mailjet';
   if (process.env.BREVO_API_KEY) return 'brevo';
@@ -48,6 +51,25 @@ export async function sendMail(m: Mail): Promise<void> {
   }
   const { html, text } = render(m);
   const fromName = process.env.MAIL_FROM_NAME || 'Yüzbir';
+  if (via === 'gmail') {
+    // Apps Script yanıtı bir yönlendirmeyle döner; fetch onu takip eder.
+    const res = await fetch(process.env.GMAIL_SCRIPT_URL!, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ secret: process.env.GMAIL_SCRIPT_SECRET, to: m.to, subject: m.subject, html, text, name: fromName }),
+      redirect: 'follow',
+      signal: AbortSignal.timeout(20_000),
+    });
+    const body = await res.text().catch(() => '');
+    let ok = false;
+    try {
+      ok = (JSON.parse(body) as { ok?: boolean }).ok === true;
+    } catch {
+      // JSON değilse (ör. Google giriş sayfası) başarısız say
+    }
+    if (!res.ok || !ok) throw new Error(`Gmail betiği ${res.status}: ${body.slice(0, 200)}`);
+    return;
+  }
   if (via === 'mailjet') {
     const auth = Buffer.from(`${process.env.MAILJET_API_KEY}:${process.env.MAILJET_SECRET_KEY}`).toString('base64');
     const res = await fetch('https://api.mailjet.com/v3.1/send', {
