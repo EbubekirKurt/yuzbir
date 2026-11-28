@@ -8,6 +8,7 @@ import { FitBox } from '../components/FitBox';
 import { Logo } from '../components/Stage';
 import { TileView } from '../components/TileView';
 import { sendAction, socket } from '../socket';
+import { announceTurn, notifyEnabled, notifySupported, setNotifyEnabled, sfx } from '../sounds';
 import { isLoneGosterge } from '../../shared/game';
 import { ranking, ScoreModal } from './ScoreModal';
 
@@ -101,6 +102,34 @@ export function GameScreen({ table }: { table: TableView }) {
     });
     setSelected((s) => (s !== null && g.hand.some((t) => t.id === s) ? s : null));
   }, [handKey, g.handNo]);
+
+  // Ses efektleri ve sıra bildirimi
+  const soundPrevRef = useRef<GameView | null>(null);
+  const [notifyOn, setNotifyOn] = useState(notifyEnabled());
+  useEffect(() => {
+    const prev = soundPrevRef.current;
+    soundPrevRef.current = g;
+    if (!prev) return;
+    const active = (v: GameView) => v.turn === me && (v.phase === 'draw' || v.phase === 'play');
+    if (active(g) && !active(prev)) {
+      setTimeout(sfx.turn, 250);
+      announceTurn(`${table.name} · El ${g.handNo}`);
+    }
+    if (g.history.length > prev.history.length) return sfx.handEnd();
+    if (prev.handNo !== g.handNo) return;
+    const lastId = prev.log[prev.log.length - 1]?.id ?? 0;
+    const fresh = g.log.filter((l) => l.id > lastId);
+    const onTable = (v: GameView) => v.table.reduce((n, m) => n + m.tiles.length, 0);
+    if (g.openings.length > prev.openings.length) sfx.open();
+    else if (fresh.some((l) => l.text.includes('okeyi aldı'))) sfx.okey();
+    else if (onTable(g) > onTable(prev)) sfx.lay();
+    if (g.deckCount < prev.deckCount) sfx.draw();
+    g.piles.forEach((p, s) => {
+      if (p.count > prev.piles[s].count) sfx.discard();
+      else if (p.count < prev.piles[s].count) sfx.draw();
+    });
+    if (fresh.some((l) => l.warn)) setTimeout(sfx.penalty, 160);
+  }, [table]);
 
   // Taş hareketlerini animasyonla göster: desteden çekme, atma, soldan alma.
   useEffect(() => {
@@ -488,6 +517,20 @@ export function GameScreen({ table }: { table: TableView }) {
           </span>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
+          {notifySupported() && (
+            <button
+              className={`btn ${notifyOn ? 'primary' : ''}`}
+              aria-pressed={notifyOn}
+              title={typeof Notification !== 'undefined' && Notification.permission === 'denied' ? 'Bildirim izni tarayıcı ayarlarından kapatılmış' : 'Başka sekmedeyken sıra sana gelince bildirim gönderir'}
+              onClick={async () => setNotifyOn(await setNotifyEnabled(!notifyOn))}
+            >
+              <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />
+                <path d="M10 20a2 2 0 0 0 4 0" />
+              </svg>
+              {notifyOn ? 'Bildirim açık' : 'Bildirim'}
+            </button>
+          )}
           <button className="btn danger" onClick={() => { if (window.confirm('Masadan çıkmak istiyor musun? Hamlelerin otomatik oynanır.')) socket.emit('table:leave'); }}>
             Masadan çık
           </button>

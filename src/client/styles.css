@@ -395,6 +395,16 @@ button.tile { cursor: pointer; }
 .okey-chip, .take-chip, .tile, .deck button, .log-item.warn, .pen { color: var(--on-accent); }
 .log-item, .toast, .grid-table, .owner-chip { color: var(--text); }
 
+/* ---------- ses düğmesi ---------- */
+.sound-toggle {
+  position: fixed; left: calc(50% - 70px); top: 8px; z-index: 90;
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); color: var(--text); border: 3px solid var(--outline); box-shadow: 0 4px 0 var(--outline); cursor: pointer;
+}
+.sound-toggle[aria-pressed='false'] { opacity: .75; }
+.sound-toggle:active { transform: translateY(2px); box-shadow: 0 2px 0 var(--outline); }
+
 /* ---------- radyo ---------- */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .radio-toggle {

@@ -11,6 +11,29 @@ import { Lobby } from './screens/Lobby';
 import { WaitingRoom } from './screens/WaitingRoom';
 import { api, ApiError, socket } from './socket';
 import { applyTheme, initialTheme, type Theme } from './theme';
+import { setSoundEnabled, soundEnabled } from './sounds';
+
+function SoundToggle() {
+  const [on, setOn] = useState(soundEnabled());
+  return (
+    <button
+      type="button"
+      className="sound-toggle"
+      aria-pressed={on}
+      aria-label={on ? 'Oyun seslerini kapat' : 'Oyun seslerini aç'}
+      title={on ? 'Oyun sesleri açık' : 'Oyun sesleri kapalı'}
+      onClick={() => {
+        setSoundEnabled(!on);
+        setOn(!on);
+      }}
+    >
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 9h4l5-4v14l-5-4H4z" />
+        {on ? <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /> : <path d="M17 9l5 6M22 9l-5 6" />}
+      </svg>
+    </button>
+  );
+}
 
 function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(initialTheme());
@@ -179,6 +202,7 @@ export default function App() {
   return (
     <>
       <Stage>{screen}</Stage>
+      <SoundToggle />
       <ThemeToggle />
       <Radio />
       <div className="toasts" role="status" aria-live="polite">
