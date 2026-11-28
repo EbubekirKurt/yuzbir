@@ -23,62 +23,90 @@ export interface Arrangement {
   rest: number[];
 }
 
-type Cand = { faces: Face[]; value: number };
+/** Aday per: her konum ya gerçek bir yüz ya da okeyle doldurulan bir yüz (joker: true). */
+type Slot = { face: Face; joker: boolean };
+type Cand = { slots: Slot[]; value: number; jokers: number };
 
-/** Okeysiz en yüksek değerli seri perleri bulur, okeyleri dizilerin ucuna ekler. */
+/**
+ * En yüksek toplam değerli seri perleri bulur. Okeyler en baştan hesaba katılır:
+ * dizideki boşlukları doldurur, eksik grupları tamamlar ya da diziyi uzatır.
+ */
 export function arrangeSeri(hand: Tile[], okey: Face): Arrangement {
   const jokers = hand.filter((t) => isJoker(t, okey));
   const reals = hand.filter((t) => !isJoker(t, okey));
-  const pool = new Map<string, Tile[]>();
   const key = (f: Face) => `${f.color}${f.num}`;
+  const pool = new Map<string, Tile[]>();
   for (const t of reals) {
     const k = key(face(t, okey));
     pool.set(k, [...(pool.get(k) ?? []), t]);
   }
   const has = (c: string, n: number) => (pool.get(`${c}${n}`)?.length ?? 0) > 0;
+  const J = jokers.length;
 
   const cands: Cand[] = [];
+  // Diziler: en az bir gerçek taş, eksikler okeyle (en fazla J tane).
   for (const color of COLORS) {
     for (let s = 1; s <= 11; s++) {
-      for (let e = s + 2; e <= 13; e++) {
-        let okRun = true;
-        for (let n = s; n <= e; n++) if (!has(color, n)) okRun = false;
-        if (!okRun) break;
-        const faces: Face[] = [];
+      let missing = 0;
+      for (let e = s; e <= 13; e++) {
+        if (!has(color, e)) missing++;
+        if (missing > J) break;
+        const len = e - s + 1;
+        if (len < 3 || missing === len) continue;
+        const slots: Slot[] = [];
         let value = 0;
         for (let n = s; n <= e; n++) {
-          faces.push({ color, num: n });
+          slots.push({ face: { color, num: n }, joker: !has(color, n) });
           value += n;
         }
-        cands.push({ faces, value });
+        cands.push({ slots, value, jokers: missing });
       }
     }
   }
+  // Gruplar: aynı sayı, farklı renk; eksik renkler okeyle.
   for (let n = 1; n <= 13; n++) {
-    const cs = COLORS.filter((c) => has(c, n));
-    if (cs.length < 3) continue;
-    if (cs.length === 4) cands.push({ faces: cs.map((color) => ({ color, num: n })), value: n * 4 });
-    for (let skip = 0; skip < cs.length; skip++) {
-      const sub = cs.length === 4 ? cs.filter((_, i) => i !== skip) : cs;
-      cands.push({ faces: sub.map((color) => ({ color, num: n })), value: n * 3 });
-      if (cs.length === 3) break;
+    const present = COLORS.filter((c) => has(c, n));
+    if (!present.length) continue;
+    const missingColors = COLORS.filter((c) => !has(c, n));
+    for (const size of [3, 4]) {
+      // Mevcut renklerin size'a kadar olan tüm alt kümeleri + okeyle tamamlama
+      const subsets = (arr: typeof COLORS, k: number): (typeof COLORS)[] =>
+        k === 0 ? [[]] : arr.flatMap((c, i) => subsets(arr.slice(i + 1), k - 1).map((rest) => [c, ...rest]));
+      for (let realCount = Math.min(size, present.length); realCount >= 1; realCount--) {
+        const need = size - realCount;
+        if (need > J || need > missingColors.length) continue;
+        for (const sub of subsets(present, realCount)) {
+          const slots: Slot[] = [
+            ...sub.map((c) => ({ face: { color: c, num: n }, joker: false })),
+            ...missingColors.slice(0, need).map((c) => ({ face: { color: c, num: n }, joker: true })),
+          ];
+          cands.push({ slots, value: n * size, jokers: need });
+        }
+      }
     }
   }
-  cands.sort((a, b) => b.value - a.value);
+  // Önce değerli ve az okey kullanan adaylar
+  cands.sort((a, b) => b.value - a.value || a.jokers - b.jokers);
 
   const counts = new Map<string, number>();
   for (const [k, v] of pool) counts.set(k, v.length);
+  let jokersLeft = J;
   let best: Cand[] = [];
   let bestValue = 0;
   let nodes = 0;
   const chosen: Cand[] = [];
   const remainingValue = () => {
-    let s = 0;
+    let s = jokersLeft * 13;
     for (const [k, c] of counts) s += c * Number(k.slice(1));
     return s;
   };
+  const fits = (c: Cand) => c.jokers <= jokersLeft && c.slots.every((sl) => sl.joker || (counts.get(key(sl.face)) ?? 0) > 0);
+  const apply = (c: Cand, d: 1 | -1) => {
+    jokersLeft -= d * c.jokers;
+    for (const sl of c.slots) if (!sl.joker) counts.set(key(sl.face), counts.get(key(sl.face))! - d);
+  };
   const dfs = (from: number, value: number) => {
-    if (++nodes > 60000) return;
+    if (++nodes > 80000) return;
     if (value > bestValue) {
       bestValue = value;
       best = [...chosen];
@@ -86,39 +114,21 @@ export function arrangeSeri(hand: Tile[], okey: Face): Arrangement {
     if (value + remainingValue() <= bestValue) return;
     for (let i = from; i < cands.length; i++) {
       const c = cands[i];
-      if (!c.faces.every((f) => (counts.get(key(f)) ?? 0) > 0)) continue;
-      c.faces.forEach((f) => counts.set(key(f), counts.get(key(f))! - 1));
+      if (!fits(c)) continue;
+      apply(c, 1);
       chosen.push(c);
       dfs(i, value + c.value);
       chosen.pop();
-      c.faces.forEach((f) => counts.set(key(f), counts.get(key(f))! + 1));
+      apply(c, -1);
     }
   };
   dfs(0, 0);
 
-  const take = (f: Face) => pool.get(key(f))!.shift()!;
-  const blocks: { tiles: Tile[]; faces: Face[]; run: boolean }[] = best.map((c) => ({
-    tiles: c.faces.map(take),
-    faces: c.faces,
-    run: c.faces[0].color === c.faces[c.faces.length - 1].color && c.faces.length > 1 && c.faces[0].num !== c.faces[1].num,
-  }));
-  // Okeyleri dizilerin ucuna ekle (değer artar).
   const spare = [...jokers];
-  for (const b of blocks) {
-    if (!spare.length) break;
-    if (b.run && b.faces[b.faces.length - 1].num < 13) {
-      b.tiles.push(spare.pop()!);
-      b.faces.push({ color: b.faces[0].color, num: b.faces[b.faces.length - 1].num + 1 });
-    } else if (b.run && b.faces[0].num > 1) {
-      b.tiles.unshift(spare.pop()!);
-      b.faces.unshift({ color: b.faces[0].color, num: b.faces[0].num - 1 });
-    } else if (!b.run && b.tiles.length === 3) {
-      b.tiles.push(spare.pop()!);
-    }
-  }
-  const used = new Set(blocks.flatMap((b) => b.tiles.map((t) => t.id)));
+  const blocks = best.map((c) => c.slots.map((sl) => (sl.joker ? spare.pop()! : pool.get(key(sl.face))!.shift()!)));
+  const used = new Set(blocks.flat().map((t) => t.id));
   const rest = sortTiles(hand.filter((t) => !used.has(t.id)), okey).map((t) => t.id);
-  return { blocks: blocks.map((b) => b.tiles.map((t) => t.id)), rest };
+  return { blocks: blocks.map((b) => b.map((t) => t.id)), rest };
 }
 
 /** Aynı taşları çift yapar, okeyleri en yüksek tek taşlarla eşleştirir. */
